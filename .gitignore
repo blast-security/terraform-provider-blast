@@ -1,0 +1,9 @@
+/dist/
+/bin/
+*.tfstate*
+.terraform/
+.terraform.lock.hcl
+*.tfvars
+terraform-provider-blast
+dev.tfrc
+*.tgz
