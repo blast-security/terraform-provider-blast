@@ -1,5 +1,6 @@
 ---
 page_title: "blast_security_control_change Resource"
+subcategory: ""
 ---
 
 # blast_security_control_change

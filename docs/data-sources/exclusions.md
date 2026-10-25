@@ -1,17 +1,29 @@
 ---
-page_title: "blast_exclusion / blast_exclusions Data Sources"
+page_title: "blast_exclusions Data Source"
+subcategory: ""
+description: |-
+  List exclusion rules, optionally for one guardrail.
 ---
 
-# blast_exclusion / blast_exclusions
+# blast_exclusions (Data Source)
 
-```hcl
-data "blast_exclusion" "one" { id = "exc-123" }
+List exclusion rules, optionally for one guardrail.
 
+## Example Usage
+
+```terraform
 data "blast_exclusions" "for_guardrail" {
-  guardrail_id  = "g-aws-s3-73735b0c"  # optional
-  name_contains = "break-glass"        # optional, client-side
+  guardrail_id  = "g-aws-vpc-f7264580"  # optional
+  name_contains = "break-glass"         # optional, client-side
 }
 ```
 
-Each exclusion exposes `id`, `name`, `note`, `platform_type`, `guardrail_catalog_ids`, `sources`, `targets`, `units`,
-`expiration_date`, `is_expired`, `created_at`, `created_by`, `updated_at`.
+## Argument Reference
+
+* `guardrail_id` (Optional) Only exclusions attached to this guardrail.
+* `name_contains` (Optional) Case-insensitive substring filter on the name.
+* `project_id` (Optional)
+
+## Attribute Reference
+
+`exclusions`: list of objects with `id` and the attributes of `blast_exclusion`.

@@ -1,12 +1,17 @@
 ---
-page_title: "blast_guardrail / blast_guardrails Data Sources"
+page_title: "blast_guardrails Data Source"
+subcategory: ""
+description: |-
+  Search the guardrail catalog.
 ---
 
-# blast_guardrail / blast_guardrails
+# blast_guardrails (Data Source)
 
-```hcl
-data "blast_guardrail" "s3" { catalog_id = "g-aws-s3-73735b0c" }
+Search the guardrail catalog.
 
+## Example Usage
+
+```terraform
 data "blast_guardrails" "aws_high" {
   platform_type      = ["Amazon Web Services"]
   severity           = ["High", "Critical"]
@@ -15,9 +20,11 @@ data "blast_guardrails" "aws_high" {
 }
 ```
 
-`blast_guardrails` filters (all optional): `name`, `severity`, `status`, `platform_type`, `platform_service`, `security_framework`,
-`guardrail_type`, `risk`, `program_name`, `has_violations`. List filters match any of the values given. It returns `catalog_ids` and `guardrails`.
+## Argument Reference
 
-Each guardrail exposes: `id`, `catalog_id`, `name`, `description`*, `severity`, `status`, `coverage`, `defense_score`, `has_violations`,
-`has_effective_exposure`, `simulation_results`, `risks`, `platform_type`, `platform_service`, `guardrail_type`*, `security_frameworks`*,
-`policy_id`*, `security_controls`* (\* only filled in by the single-guardrail lookup).
+All optional, combined with AND; list filters match any value: `name`, `severity`, `status`, `platform_type`, `platform_service`,
+`security_framework`, `guardrail_type`, `risk`, `program_name`, `has_violations`, `project_id`.
+
+## Attribute Reference
+
+`catalog_ids` (list of strings) and `guardrails` (list of objects with the summary attributes of `blast_guardrail`; `description`, `guardrail_type`, `security_frameworks`, `policy_id` and `security_controls` are only filled by the single lookup).
