@@ -2,7 +2,7 @@ terraform {
   required_providers {
     blast = {
       source  = "blast-security/blast"
-      version = "~> 0.1"
+      version = "~> 0.2"
     }
   }
 }

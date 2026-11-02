@@ -23,9 +23,16 @@ var (
 		"S3 Bucket Policy", "IAM Policy", "IAM Trust Relationship Policy", "Bedrock Guardrail",
 		"Azure Policy Assignment", "Conditional Access Policy",
 	}
-	exclusionIdentifiers = []string{"Account ID", "ARN", "Source IP", "Tag"}
-	exclusionOperators   = []string{"Equals", "Not Equals", "Like"}
-	deliveryModes        = []string{deliveryTask, deliveryOpenPR}
+	// Known exclusion identifiers, used only to normalise label/raw-key spellings.
+	// They are NOT enforced: the API is the source of truth (see GET /enums), so new
+	// identifiers work without a provider release.
+	exclusionIdentifiers = []string{
+		"Account ID", "ARN", "Source IP", "Tag", "Region",
+		"VPC ID", "VPC Endpoint ID", "Principal Organization Path",
+		"Scope Identifier", "Users", "Groups", "Roles", "Applications",
+	}
+	exclusionOperators = []string{"Equals", "Not Equals", "Like"}
+	deliveryModes      = []string{deliveryTask, deliveryOpenPR}
 )
 
 const (

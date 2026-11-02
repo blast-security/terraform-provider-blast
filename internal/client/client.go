@@ -157,6 +157,7 @@ func jwtExpiry(tok string) time.Time {
 // RequestOptions are per-call overrides.
 type RequestOptions struct {
 	ProjectID string // overrides the provider default when non-empty
+	NoProject bool   // tenant-scoped endpoints: never send x-project-id
 	Query     url.Values
 }
 
@@ -196,7 +197,7 @@ func (c *Client) Do(ctx context.Context, method, path string, opts RequestOption
 	if project == "" {
 		project = c.cfg.ProjectID
 	}
-	if project != "" {
+	if project != "" && !opts.NoProject {
 		req.Header.Set(projectHeader, project)
 	}
 

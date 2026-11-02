@@ -30,7 +30,9 @@ resource "blast_exclusion" "break_glass" {
 * `name` (Required) Rule name.
 * `guardrail_catalog_ids` (Required, set) Guardrail catalog IDs. **Forces replacement.**
 * `sources` / `targets` (exactly one required) List of `{ identifier, operator, values }`.
-  `identifier`: `Account ID`, `ARN`, `Source IP`, `Tag`. `operator`: `Equals`, `Not Equals`, `Like`.
+  `identifier`: for example `Account ID`, `ARN`, `Source IP`, `Tag`, `VPC ID` (`aws:SourceVpc`), `VPC Endpoint ID` (`aws:SourceVpce`).
+  `operator`: for example `Equals`, `Not Equals`, `Like` (AWS rules use `Like`, with `*` wildcards).
+  Allowed values depend on the platform and on source vs. target; the Blast API validates them (`GET /api/v1/external/enums`).
   Removing all rules of one kind forces replacement.
 * `note` (Optional)
 * `platform_type` (Optional) `Amazon Web Services`, `Azure Cloud`, `Google Cloud Platform`. Resolved from the guardrail when omitted.

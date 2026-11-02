@@ -30,6 +30,8 @@ type store struct {
 	guardrails []obj
 	controls   []obj
 	policies   map[string]string
+	projects   map[string]obj
+	orgUnits   []obj
 }
 
 func newStore() *store {
@@ -52,6 +54,17 @@ func newStore() *store {
 				"status": "Active", "attachedGuardrails": []string{"g-aws-s3-73735b0c"}, "controlId": "arn:aws:organizations::111111111111:policy/o-abc/service_control_policy/p-abc",
 				"platformResources": []obj{{"resourceId": "ou-abcd-11111111", "resourceName": "Prod", "resourceType": "OU", "platformType": "Amazon Web Services", "attachedEffectiveness": true, "monitored": true}}},
 			{"id": "sc-2", "name": "blast-rcp-data", "type": "Resource Control Policy", "cloudProvider": "Amazon Web Services", "status": "Active"},
+		},
+		projects: map[string]obj{
+			"prj-default": {"id": "prj-default", "name": "All Cloud Units", "default": true, "status": "ACTIVE",
+				"types": []string{"PROJECT_TYPE_DEFAULT"}, "description": ""},
+		},
+		orgUnits: []obj{
+			{"id": "r-abcd", "name": "Root", "type": "ROOT", "platformType": "Amazon Web Services", "platformOrgId": "o-abc", "monitoringStatus": "MONITORED"},
+			{"id": "ou-abcd-11111111", "name": "Prod", "type": "ORGANIZATIONAL_UNIT", "platformType": "Amazon Web Services", "platformOrgId": "o-abc", "parentId": "r-abcd", "monitoringStatus": "MONITORED"},
+			{"id": "ou-abcd-22222222", "name": "Dev", "type": "ORGANIZATIONAL_UNIT", "platformType": "Amazon Web Services", "platformOrgId": "o-abc", "parentId": "r-abcd", "monitoringStatus": "MONITORED"},
+			{"id": "111111111111", "name": "prod-payments", "type": "ACCOUNT", "platformType": "Amazon Web Services", "platformOrgId": "o-abc", "parentId": "ou-abcd-11111111", "monitoringStatus": "MONITORED"},
+			{"id": "222222222222", "name": "dev-sandbox", "type": "ACCOUNT", "platformType": "Amazon Web Services", "platformOrgId": "o-abc", "parentId": "ou-abcd-22222222", "monitoringStatus": "MONITORED"},
 		},
 		policies: map[string]string{
 			"sc-1": `{"Version":"2012-10-17","Statement":[{"Sid":"DenyPublicS3","Effect":"Deny","Action":"s3:PutBucketPolicy","Resource":"*"}]}`,
@@ -335,6 +348,183 @@ func main() {
 		t["terraformPrUrl"] = u
 		writeJSON(w, 201, obj{"id": t["id"], "url": u, "title": in["title"]})
 	})
+
+	// ---- projects (tenant-scoped: reject x-project-id to prove the provider omits it) ----
+	unitByID := func(id string) obj {
+		for _, u := range s.orgUnits {
+			if u["id"] == id {
+				return obj{"id": id, "name": u["name"], "platformType": u["platformType"], "platformOrgId": u["platformOrgId"],
+					"groupingUnit": u["type"] != "ACCOUNT", "unitTypes": []string{fmt.Sprint(u["type"])}, "regions": []string{}}
+			}
+		}
+		return nil
+	}
+	setUnits := func(p obj, ids []any) bool {
+		units := []obj{}
+		plats := map[string]bool{}
+		for _, id := range ids {
+			u := unitByID(fmt.Sprint(id))
+			if u == nil {
+				return false
+			}
+			units = append(units, u)
+			plats[fmt.Sprint(u["platformType"])] = true
+		}
+		pl := []string{}
+		for k := range plats {
+			pl = append(pl, k)
+		}
+		p["units"], p["numberOfUnits"], p["platformTypes"] = units, len(units), pl
+		return true
+	}
+	rawTypes := func(v any) []string { // "Production,Test" -> ["PROJECT_TYPE_PRODUCTION", ...]
+		out := []string{}
+		for _, t := range strings.Split(fmt.Sprint(v), ",") {
+			if t = strings.TrimSpace(t); t != "" {
+				out = append(out, "PROJECT_TYPE_"+rawKey(t))
+			}
+		}
+		return out
+	}
+	lean := func(p obj) obj {
+		return obj{"id": p["id"], "name": p["name"], "status": p["status"], "default": p["default"],
+			"platformTypes": p["platformTypes"], "numberOfUnits": p["numberOfUnits"]}
+	}
+	nameTaken := func(name, except string) bool {
+		for id, p := range s.projects {
+			if id != except && strings.EqualFold(fmt.Sprint(p["name"]), name) {
+				return true
+			}
+		}
+		return false
+	}
+	projectGuard := func(h http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("x-project-id") != "" {
+				writeJSON(w, 400, obj{"message": "projects endpoints are tenant-scoped; x-project-id must not be sent"})
+				return
+			}
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			h(w, r)
+		}
+	}
+	api.HandleFunc("GET "+ext+"/projects", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query()
+		var out []obj
+		for _, p := range s.projects {
+			if v := q.Get("search"); v != "" && !strings.Contains(strings.ToLower(fmt.Sprint(p["name"])), strings.ToLower(v)) {
+				continue
+			}
+			out = append(out, lean(p))
+		}
+		writeJSON(w, 200, page(out))
+	}))
+	api.HandleFunc("GET "+ext+"/projects/name-available", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		n := r.URL.Query().Get("name")
+		writeJSON(w, 200, obj{"name": n, "available": !nameTaken(n, "")})
+	}))
+	api.HandleFunc("GET "+ext+"/projects/organizations", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		pid := r.URL.Query().Get("projectId")
+		if pid == "" {
+			writeJSON(w, 200, obj{"data": s.orgUnits})
+			return
+		}
+		p, ok := s.projects[pid]
+		if !ok {
+			writeJSON(w, 404, obj{"message": "Project not found"})
+			return
+		}
+		var out []obj
+		units, _ := p["units"].([]obj)
+		for _, u := range units {
+			for _, o := range s.orgUnits {
+				if o["id"] == u["id"] {
+					out = append(out, o)
+				}
+			}
+		}
+		writeJSON(w, 200, obj{"data": out})
+	}))
+	api.HandleFunc("POST "+ext+"/projects", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		var in obj
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		name := fmt.Sprint(in["name"])
+		if in["name"] == nil || name == "" || strings.EqualFold(name, "All Cloud Units") || nameTaken(name, "") {
+			writeJSON(w, 400, obj{"message": "Reserved or duplicate name"})
+			return
+		}
+		p := obj{"id": s.id("prj"), "name": name, "description": in["description"], "status": "ACTIVE", "default": false,
+			"types": rawTypes(in["types"])}
+		if in["types"] == nil {
+			p["types"] = []string{}
+		}
+		ids, _ := in["unitIds"].([]any)
+		if !setUnits(p, ids) {
+			writeJSON(w, 400, obj{"message": "unknown unit id"})
+			return
+		}
+		s.projects[p["id"].(string)] = p
+		writeJSON(w, 201, p)
+	}))
+	api.HandleFunc("GET "+ext+"/projects/{id}", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		if p, ok := s.projects[r.PathValue("id")]; ok {
+			writeJSON(w, 200, p)
+			return
+		}
+		writeJSON(w, 404, obj{"message": "Project not found"})
+	}))
+	api.HandleFunc("PUT "+ext+"/projects/{id}", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		p, ok := s.projects[r.PathValue("id")]
+		if !ok {
+			writeJSON(w, 404, obj{"message": "Project not found"})
+			return
+		}
+		if p["default"] == true {
+			writeJSON(w, 409, obj{"message": "The default project cannot be updated"})
+			return
+		}
+		var in obj
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if v, ok := in["name"]; ok && v != "" {
+			if nameTaken(fmt.Sprint(v), p["id"].(string)) {
+				writeJSON(w, 400, obj{"message": "duplicate name"})
+				return
+			}
+			p["name"] = v
+		}
+		if v, ok := in["description"]; ok {
+			p["description"] = v
+		}
+		if v, ok := in["status"]; ok && v != "" {
+			p["status"] = rawKey(fmt.Sprint(v))
+		}
+		if v, ok := in["types"]; ok {
+			p["types"] = rawTypes(v)
+		}
+		if v, ok := in["unitIds"]; ok {
+			ids, _ := v.([]any)
+			if !setUnits(p, ids) {
+				writeJSON(w, 400, obj{"message": "unknown unit id"})
+				return
+			}
+		}
+		writeJSON(w, 200, p)
+	}))
+	api.HandleFunc("DELETE "+ext+"/projects/{id}", projectGuard(func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("id")
+		p, ok := s.projects[id]
+		if !ok {
+			writeJSON(w, 404, obj{"message": "Project not found"})
+			return
+		}
+		if p["default"] == true {
+			writeJSON(w, 409, obj{"message": "The default project cannot be deleted"})
+			return
+		}
+		delete(s.projects, id)
+		writeJSON(w, 200, obj{"id": id, "deleted": true})
+	}))
 
 	mux.Handle(ext+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer "+token {

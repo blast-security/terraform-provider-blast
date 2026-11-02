@@ -22,6 +22,10 @@ func TestCanonicalEnum(t *testing.T) {
 		{"PLATFORM_TYPE_AWS", platformTypes, "Amazon Web Services"},
 		{"AZURE", platformTypes, "Azure Cloud"},
 		{"Something New", platformTypes, "Something New"},
+		{"VPC_ENDPOINT_ID", exclusionIdentifiers, "VPC Endpoint ID"},
+		{"VPC_ID", exclusionIdentifiers, "VPC ID"},
+		{"SOURCE_IP", exclusionIdentifiers, "Source IP"},
+		{"aws:SourceVpc", exclusionIdentifiers, "aws:SourceVpc"},
 	}
 	for _, c := range cases {
 		if got := canonicalEnum(c.api, c.labels); got != c.want {

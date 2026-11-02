@@ -3,6 +3,7 @@
 # Required: -var guardrail_catalog_id=... -var security_control_name_contains=...
 # Everything this creates is a test object that `destroy` removes again.
 #
+#   step 0  project          -var step_project=true [-var project_unit_name=<test account name>]
 #   step 1  exclusion        -var step_exclusion=true
 #   step 2  guardrail task   -var step_deployment=true        (task only; nothing reaches AWS)
 #   step 3  control change   -var step_control_change=true    (task only; nothing reaches AWS)
@@ -24,6 +25,15 @@ variable "step_deployment" {
   type    = bool
   default = false
 }
+variable "step_project" {
+  type    = bool
+  default = false
+}
+variable "project_unit_name" {
+  description = "Name (or part of it) of ONE test account/OU to put in the test project (step 0)."
+  type        = string
+  default     = ""
+}
 variable "step_control_change" {
   type    = bool
   default = false
@@ -41,8 +51,17 @@ variable "security_control_name_contains" {
   description = "Name (or part of it) of a TEST SCP used for the control-change and deployment steps. Never point this at a production SCP."
   type        = string
 }
-variable "test_account_id" {
-  description = "Fake/test AWS account ID put in the exclusion rule."
+variable "test_identifier" {
+  description = "Exclusion identifier to test, e.g. \"Account ID\", \"VPC ID\" (aws:SourceVpc) or \"VPC Endpoint ID\" (aws:SourceVpce)."
+  type        = string
+  default     = "Account ID"
+}
+variable "test_operator" {
+  type    = string
+  default = "Like"
+}
+variable "test_value" {
+  description = "Value for the test exclusion (a fake account ID, vpc-..., or vpce-...)."
   type        = string
   default     = "000000000000"
 }
@@ -70,6 +89,28 @@ locals {
   test_units = try([for r in local.test_scp.platform_resources : r.resource_id], [])
 }
 
+# ---------- step 0: project ----------
+data "blast_cloud_units" "project_test" {
+  count         = var.step_project ? 1 : 0
+  name_contains = var.project_unit_name
+}
+
+resource "blast_project" "test" {
+  count       = var.step_project ? 1 : 0
+  name        = "${local.tag} project"
+  description = "Created by the Terraform provider live test; safe to delete."
+  types       = ["Test"]
+  unit_ids    = var.project_unit_name == "" ? [] : slice(data.blast_cloud_units.project_test[0].ids, 0, 1)
+}
+
+output "project" {
+  value = try({
+    id     = blast_project.test[0].id
+    status = blast_project.test[0].status
+    units  = [for u in blast_project.test[0].units : "${u.id} (${u.name})"]
+  }, null)
+}
+
 # ---------- step 1 ----------
 resource "blast_exclusion" "test" {
   count                 = var.step_exclusion ? 1 : 0
@@ -77,9 +118,9 @@ resource "blast_exclusion" "test" {
   note                  = "Created by the Terraform provider live test; safe to delete."
   guardrail_catalog_ids = [data.blast_guardrail.target.catalog_id]
   sources = [{
-    identifier = "Account ID"
-    operator   = "Equals"
-    values     = [var.test_account_id]
+    identifier = var.test_identifier
+    operator   = var.test_operator
+    values     = [var.test_value]
   }]
   expiration_date = "2027-01-31"
 }

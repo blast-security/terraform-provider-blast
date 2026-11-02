@@ -129,3 +129,25 @@ func TestJWTExpiryFallback(t *testing.T) {
 		t.Fatalf("exp = %d", got)
 	}
 }
+
+func TestProjectsNeverSendProjectHeader(t *testing.T) {
+	var got []string
+	srv, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		got = append(got, r.Header.Get("x-project-id"))
+		_, _ = w.Write([]byte(`{"id":"p1","name":"n","data":[],"page":{"totalPages":1}}`))
+	})
+	c := newTestClient(t, srv, "default-prj")
+	ctx := context.Background()
+	if _, err := c.GetProject(ctx, "p1"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.ListProjects(ctx, nil); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c.GetExclusion(ctx, "", "e1"); err != nil {
+		t.Fatal(err)
+	}
+	if got[0] != "" || got[1] != "" || got[2] != "default-prj" {
+		t.Fatalf("x-project-id headers = %q (projects must omit it, exclusions must keep it)", got)
+	}
+}

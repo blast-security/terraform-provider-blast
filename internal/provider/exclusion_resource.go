@@ -76,13 +76,13 @@ func ruleListSchema(desc string) schema.ListNestedAttribute {
 			Attributes: map[string]schema.Attribute{
 				"identifier": schema.StringAttribute{
 					Required:    true,
-					Description: "What to match: Account ID, ARN, Source IP or Tag.",
-					Validators:  []validator.String{stringvalidator.OneOfCaseInsensitive(exclusionIdentifiers...)},
+					Description: "What to match, e.g. Account ID, ARN, Source IP, Tag, VPC ID, VPC Endpoint ID. Validated by the Blast API; see GET /enums for the values your tenant supports.",
+					Validators:  []validator.String{stringvalidator.LengthAtLeast(1)},
 				},
 				"operator": schema.StringAttribute{
 					Required:    true,
-					Description: "Equals, Not Equals or Like.",
-					Validators:  []validator.String{stringvalidator.OneOfCaseInsensitive(exclusionOperators...)},
+					Description: "Match operator, e.g. Equals, Not Equals or Like (AWS rules use Like). Validated by the Blast API.",
+					Validators:  []validator.String{stringvalidator.LengthAtLeast(1)},
 				},
 				"values": schema.ListAttribute{
 					Required:    true,

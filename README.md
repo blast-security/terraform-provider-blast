@@ -14,7 +14,7 @@ terraform {
   required_providers {
     blast = {
       source  = "blast-security/blast"
-      version = "~> 0.1"
+      version = "~> 0.2"
     }
   }
 }
@@ -34,6 +34,8 @@ Create the client ID and secret in Blast under **Settings → Access Keys**.
 | Create custom guardrail (deploy catalog guardrails as a control) | `resource "blast_guardrail_deployment"` |
 | Get security controls | `data "blast_security_control"` (incl. policy JSON), `data "blast_security_controls"` |
 | Change security controls (SCP/RCP) | `resource "blast_security_control_change"` |
+| Projects | `resource "blast_project"`, `data "blast_project"`, `data "blast_projects"` |
+| Find cloud units for projects | `data "blast_cloud_units"` |
 
 The two task-backed resources support `delivery_mode = "task"` (default) or `"open_pr"`. **Direct deploy is out of scope** because the API doesn't expose it.
 For full docs, see [`docs/`](docs/). For a working config covering every resource and data source, see [`examples/complete`](examples/complete/main.tf).
