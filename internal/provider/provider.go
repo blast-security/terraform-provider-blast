@@ -115,6 +115,8 @@ func (p *blastProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewGuardrailDeploymentResource,
 		NewControlChangeResource,
 		NewProjectResource,
+		NewAutomationRuleResource,
+		NewGapResource,
 	}
 }
 
@@ -129,5 +131,9 @@ func (p *blastProvider) DataSources(_ context.Context) []func() datasource.DataS
 		NewProjectDataSource,
 		NewProjectsDataSource,
 		NewCloudUnitsDataSource,
+		NewAutomationRuleDataSource,
+		NewAutomationRulesDataSource,
+		NewGapDataSource,
+		NewGapsDataSource,
 	}
 }

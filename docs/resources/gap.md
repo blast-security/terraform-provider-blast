@@ -1,0 +1,17 @@
+---
+page_title: "blast_gap Resource"
+subcategory: ""
+description: |-
+  TODO: describe blast_gap.
+---
+
+# blast_gap (Resource)
+
+TODO: describe blast_gap and add an example.
+
+Generated from these External API routes:
+
+* `POST /api/v1/external/gaps`
+* `GET /api/v1/external/gaps/{id}`
+* `PUT /api/v1/external/gaps/{id}`
+* `DELETE /api/v1/external/gaps/{id}`
