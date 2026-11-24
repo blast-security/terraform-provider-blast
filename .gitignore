@@ -7,3 +7,6 @@
 terraform-provider-blast
 dev.tfrc
 *.tgz
+
+# Internal hand-off notes (see AGENTS.md); never commit
+HANDOFF.md
