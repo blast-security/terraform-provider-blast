@@ -1,3 +1,9 @@
+## 0.3.0 (Unreleased)
+
+FEATURES:
+
+* **New Resource:** `blast_automation_rule`: Slack and Jira notifications for blocked activity, expiring exclusions, exclusion requests, coverage drops, new guardrails and control drift (create, update in place, delete, import). Changing `trigger` replaces the rule. An update replaces the whole rule, so actions added in the console (for example webhooks) are removed; the provider warns when a rule has them.
+
 ## 0.2.0 (Unreleased)
 
 FEATURES:

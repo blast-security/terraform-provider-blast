@@ -23,21 +23,23 @@ import (
 type obj = map[string]any
 
 type store struct {
-	mu         sync.Mutex
-	seq        int
-	exclusions map[string]obj
-	tasks      map[string]obj
-	guardrails []obj
-	controls   []obj
-	policies   map[string]string
-	projects   map[string]obj
-	orgUnits   []obj
+	mu          sync.Mutex
+	seq         int
+	exclusions  map[string]obj
+	tasks       map[string]obj
+	automations map[string]obj
+	guardrails  []obj
+	controls    []obj
+	policies    map[string]string
+	projects    map[string]obj
+	orgUnits    []obj
 }
 
 func newStore() *store {
 	return &store{
-		exclusions: map[string]obj{},
-		tasks:      map[string]obj{},
+		exclusions:  map[string]obj{},
+		automations: map[string]obj{},
+		tasks:       map[string]obj{},
 		guardrails: []obj{
 			{"id": "gr-1", "catalogId": "g-aws-s3-73735b0c", "name": "Block public S3 buckets", "severity": "High", "status": "Active",
 				"coverage": 80.0, "platformType": "Amazon Web Services", "platformService": "S3", "risks": []string{"Data Leakage"},
@@ -525,6 +527,8 @@ func main() {
 		delete(s.projects, id)
 		writeJSON(w, 200, obj{"id": id, "deleted": true})
 	}))
+
+	registerAutomations(api, s, ext)
 
 	mux.Handle(ext+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("Authorization") != "Bearer "+token {

@@ -88,4 +88,48 @@ expect_plan "2 to add, 0 to change, 2 to destroy"
 step "destroy"
 "$TF" destroy -auto-approve -no-color -var pr_mode=open_pr >/dev/null
 grep -c "DELETE /api/v1/external/" "$WORK/mock.log" | xargs echo "ok: DELETE calls:"
+
+# ---------- automation rules (examples/automation-rules) ----------
+mkdir "$WORK/automation" && cp "$ROOT/examples/automation-rules/main.tf" "$WORK/automation/" && cd "$WORK/automation"
+edit() { perl -pi -e "$1" main.tf; } # portable in-place edit (macOS and Linux)
+
+step "automation rules: create, then no drift from API defaults (# in channel, EQUAL, 180 days)"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "automation rules: in-place update"
+edit 's/Blocked by Blast/Blocked by Blast, see the console/'
+expect_plan "1 to change"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "automation rules: trigger change forces replace"
+edit 's/"COVERAGE_DECREASED"/"NEW_GUARDRAILS_ADDED"/'
+expect_plan "trigger.*forces replacement"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "automation rules: a field the trigger does not offer is rejected by the API, with every problem listed"
+cat > bad.tf <<'TF'
+resource "blast_automation_rule" "bad" {
+  name       = "bad"
+  trigger    = "COVERAGE_DECREASED"
+  conditions = { security_control_ids = { values = ["sc-1"] } }
+  slack      = { channel = "#x" }
+}
+TF
+if "$TF" apply -auto-approve -no-color >apply.out 2>&1; then cat apply.out; echo "FAIL: expected a 400"; exit 1; fi
+tr "\n" " " < apply.out | grep -q "conditions: not *offered by *COVERAGE_DECREASED" || { cat apply.out; echo "FAIL: API error not surfaced"; exit 1; }
+echo "ok: API error surfaced"
+rm bad.tf
+
+step "automation rules: import round-trip"
+RULE=$("$TF" output -raw blocked_to_channel_id)
+"$TF" state rm -no-color blast_automation_rule.blocked_to_channel >/dev/null
+"$TF" import -no-color blast_automation_rule.blocked_to_channel "$RULE" >/dev/null
+"$TF" plan -no-color >plan.out 2>&1 || true
+if grep -q "must be replaced" plan.out; then cat plan.out; echo "FAIL: import caused replacement"; exit 1; fi
+echo "ok: import does not force replacement"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "automation rules: destroy"
+"$TF" destroy -auto-approve -no-color >/dev/null
+grep -c "DELETE /api/v1/external/automations/" "$WORK/mock.log" | xargs echo "ok: automation DELETE calls:"
 echo; echo "ALL E2E CHECKS PASSED"

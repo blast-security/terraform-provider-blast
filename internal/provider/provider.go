@@ -115,6 +115,7 @@ func (p *blastProvider) Resources(_ context.Context) []func() resource.Resource 
 		NewGuardrailDeploymentResource,
 		NewControlChangeResource,
 		NewProjectResource,
+		NewAutomationRuleResource,
 	}
 }
 
