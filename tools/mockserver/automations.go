@@ -140,6 +140,52 @@ func automationResponse(id string, in obj, meta obj) obj {
 }
 
 func registerAutomations(api *http.ServeMux, s *store, ext string) {
+	api.HandleFunc("GET "+ext+"/automations", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		q := r.URL.Query()
+		var out []obj
+		for id, rec := range s.automations {
+			body := rec["body"].(obj)
+			meta := rec["meta"].(obj)
+			trigger := fmt.Sprint(body["trigger"])
+			if v := q.Get("trigger"); v != "" && v != trigger {
+				continue
+			}
+			active := true
+			if a, ok := body["active"].(bool); ok {
+				active = a
+			}
+			if v := q.Get("active"); v != "" {
+				want := v == "true"
+				if active != want {
+					continue
+				}
+			}
+			var dests []string
+			if slack, ok := body["slack"].(map[string]any); ok {
+				if ch, ok := slack["channel"].(string); ok && ch != "" {
+					dests = append(dests, ch)
+				} else if routing, _ := slack["useNotificationRoutingRules"].(bool); routing {
+					dests = append(dests, "notification-routing")
+				}
+			}
+			if body["jira"] != nil {
+				dests = append(dests, "jira")
+			}
+			out = append(out, obj{
+				"id":           id,
+				"name":         body["name"],
+				"trigger":      trigger,
+				"active":       active,
+				"destinations": dests,
+				"modifiedBy":   meta["modifiedBy"],
+				"modifiedAt":   meta["modifiedAt"],
+			})
+		}
+		writeJSON(w, 200, page(out))
+	})
+
 	decode := func(w http.ResponseWriter, r *http.Request) (obj, bool) {
 		var in obj
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {

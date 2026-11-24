@@ -28,6 +28,7 @@ type store struct {
 	exclusions  map[string]obj
 	tasks       map[string]obj
 	automations map[string]obj
+	gaps        map[string]obj
 	guardrails  []obj
 	controls    []obj
 	policies    map[string]string
@@ -40,6 +41,16 @@ func newStore() *store {
 		exclusions:  map[string]obj{},
 		automations: map[string]obj{},
 		tasks:       map[string]obj{},
+		gaps: map[string]obj{
+			"gap-seed-1": {
+				"id": "gap-seed-1", "projectId": "",
+				"name": "Unused exclusion", "category": "exclusion_hygiene",
+				"type": "UNUSED_EXCLUSION", "priorityScore": 42.0,
+				"priorityLevel": "medium", "isQuickWin": true,
+				"status": "open", "gainPoints": 10.0,
+				"createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z",
+			},
+		},
 		guardrails: []obj{
 			{"id": "gr-1", "catalogId": "g-aws-s3-73735b0c", "name": "Block public S3 buckets", "severity": "High", "status": "Active",
 				"coverage": 80.0, "platformType": "Amazon Web Services", "platformService": "S3", "risks": []string{"Data Leakage"},
@@ -528,6 +539,7 @@ func main() {
 		writeJSON(w, 200, obj{"id": id, "deleted": true})
 	}))
 
+	registerGaps(api, s, ext)
 	registerAutomations(api, s, ext)
 
 	mux.Handle(ext+"/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

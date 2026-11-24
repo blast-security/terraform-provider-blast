@@ -2,13 +2,40 @@
 page_title: "blast_gap Data Source"
 subcategory: ""
 description: |-
-  TODO: describe blast_gap.
+  Look up a single security gap by ID.
 ---
 
 # blast_gap (Data Source)
 
-TODO: describe blast_gap and add an example.
+Look up a single security gap by ID. A gap represents a detected security posture issue, including its priority, status, and remediation guidance.
 
-Generated from these External API routes:
+## Example Usage
 
-* `GET /api/v1/external/gaps/{id}`
+```terraform
+data "blast_gap" "example" {
+  id = "<GAP_ID>"
+}
+```
+
+## Argument Reference
+
+* `id` (Required) Gap ID.
+* `project_id` (Optional) Overrides the provider project.
+
+## Attribute Reference
+
+* `name` — Gap name.
+* `description` — Detailed description of the gap.
+* `external_key` — Stable key used for external upsert syncs (optional).
+* `category` — Gap category (e.g. `missing_defense`, `defense_misalignment`, `exclusion_hygiene`, `defense_orchestration`).
+* `type` — Gap type (e.g. `EXPIRED_EXCLUSION`, `UNUSED_EXCLUSION`, `WORKFLOW_BLOCKED`).
+* `priority_score` — Numeric priority score.
+* `priority_level` — Priority level: `critical`, `high`, `medium`, or `low`.
+* `is_quick_win` — Whether this gap is classified as a quick win.
+* `status` — Status: `open`, `in_progress`, `resolved`, `closed`, or `ignored`.
+* `gain_points` — Points gained by resolving this gap.
+* `priority_indicators` — Breakdown of what drives the priority. Contains `effective_exposure`, `suspicious_activities`, `violations_found` (each with `count`, `weight`, `max_weight`) and `threat_intel` (additionally `threat_id`, `link`).
+* `mitigation` — Remediation guidance. Contains `description`, `link`, `guardrail_name`, `guardrail_id`, `impact_label`.
+* `last_detected_at` — When the gap was last detected.
+* `resolved_at` — When the gap was resolved (if applicable).
+* `created_at`, `updated_at` — Timestamps.

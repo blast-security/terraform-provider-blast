@@ -132,4 +132,25 @@ echo "ok: import does not force replacement"
 step "automation rules: destroy"
 "$TF" destroy -auto-approve -no-color >/dev/null
 grep -c "DELETE /api/v1/external/automations/" "$WORK/mock.log" | xargs echo "ok: automation DELETE calls:"
+
+# ---------- data sources (examples/data-sources) ----------
+mkdir "$WORK/ds" && cp "$ROOT/examples/data-sources/main.tf" "$WORK/ds/" && cd "$WORK/ds"
+
+step "data sources: create rule and read back via data sources"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "data sources: blast_automation_rule matches created rule"
+RULE_ID=$("$TF" output -raw automation_rule_id)
+test -n "$RULE_ID" && echo "ok: blast_automation_rule.id=$RULE_ID"
+
+step "data sources: blast_automation_rules returns at least one rule"
+COUNT=$("$TF" output -raw automation_rules_count)
+test "$COUNT" -ge 1 && echo "ok: blast_automation_rules.rules count=$COUNT"
+
+step "data sources: blast_gap reads pre-seeded gap"
+GAP_NAME=$("$TF" output -raw gap_name)
+test -n "$GAP_NAME" && echo "ok: blast_gap.name=$GAP_NAME"
+
+step "data sources: destroy"
+"$TF" destroy -auto-approve -no-color >/dev/null
 echo; echo "ALL E2E CHECKS PASSED"
