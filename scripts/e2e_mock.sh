@@ -129,7 +129,38 @@ if grep -q "must be replaced" plan.out; then cat plan.out; echo "FAIL: import ca
 echo "ok: import does not force replacement"
 "$TF" apply -auto-approve -no-color >/dev/null; expect_clean
 
+step "automation rules: bare-ID import + explicit project_id equal to the provider default plans no replacement"
+"$TF" state rm -no-color blast_automation_rule.blocked_to_channel >/dev/null
+BLAST_PROJECT_ID=prj-e2e "$TF" import -no-color blast_automation_rule.blocked_to_channel "$RULE" >/dev/null
+edit 's/(trigger = "BLOCKED_ACTIVITY")/$1\n  project_id = "prj-e2e"/'
+BLAST_PROJECT_ID=prj-e2e "$TF" plan -no-color >plan.out 2>&1 || true
+if grep -q "blocked_to_channel must be replaced" plan.out; then cat plan.out; echo "FAIL: explicit project_id after bare import forced replacement"; exit 1; fi
+echo "ok: no replacement"
+grep -q "blocked_with_exclusion_requests must be replaced" plan.out || { cat plan.out; echo "FAIL: a rule created in All Cloud Units must be replaced when its effective project changes"; exit 1; }
+echo "ok: a real project change still replaces"
+edit 's/\n  project_id = "prj-e2e"//; s/^  project_id = "prj-e2e"\n//'
+
 step "automation rules: destroy"
 "$TF" destroy -auto-approve -no-color >/dev/null
 grep -c "DELETE /api/v1/external/automations/" "$WORK/mock.log" | xargs echo "ok: automation DELETE calls:"
+# ---------- projects (examples/projects; tenant-scoped, no x-project-id) ----------
+cd "$WORK" && mkdir "$WORK/projects" && cp "$ROOT/examples/projects/main.tf" "$WORK/projects/" && cd "$WORK/projects"
+
+step "projects: create, then no drift"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "projects: in-place update"
+perl -pi -e 's/managed by Terraform/managed by Terraform (e2e)/' main.tf
+expect_plan "1 to change"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "projects: import round-trip"
+PRJ=$("$TF" output -json project | sed -E 's/.*"id":"([^"]+)".*/\1/')
+"$TF" state rm -no-color blast_project.production >/dev/null
+"$TF" import -no-color blast_project.production "$PRJ" >/dev/null
+expect_clean
+
+step "projects: destroy"
+"$TF" destroy -auto-approve -no-color >/dev/null
+grep -c "DELETE /api/v1/external/projects/" "$WORK/mock.log" | xargs echo "ok: project DELETE calls:"
 echo; echo "ALL E2E CHECKS PASSED"

@@ -1,0 +1,14 @@
+# Replace the team names with real ones before merging, then turn on
+# "Require review from Code Owners" for main in the branch protection rules.
+
+*                                         @blast-security/terraform-maintainers
+
+# Product decides which API objects become Terraform resources.
+/terraform-sync-policy.json               @blast-security/terraform-product @blast-security/terraform-maintainers
+/internal/provider/*_resource.go          @blast-security/terraform-product @blast-security/terraform-maintainers
+
+# The guard tests, their allowlists and the agent's instructions.
+/internal/provider/policy_test.go         @blast-security/terraform-maintainers
+/internal/provider/schema_lint_test.go    @blast-security/terraform-maintainers
+/AGENTS.md                                @blast-security/terraform-maintainers
+/.github/                                 @blast-security/terraform-maintainers

@@ -24,6 +24,7 @@ import (
 
 var (
 	_ resource.Resource                   = &exclusionResource{}
+	_ resource.ResourceWithModifyPlan     = &exclusionResource{}
 	_ resource.ResourceWithImportState    = &exclusionResource{}
 	_ resource.ResourceWithValidateConfig = &exclusionResource{}
 )
@@ -106,11 +107,7 @@ func (r *exclusionResource) Schema(_ context.Context, _ resource.SchemaRequest, 
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
-			"project_id": schema.StringAttribute{
-				Optional:      true,
-				Description:   "Blast project ID. Overrides the provider default.",
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
-			},
+			"project_id": projectIDAttribute(),
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "Human-readable name of the exclusion rule.",
@@ -308,6 +305,7 @@ func (r *exclusionResource) Create(ctx context.Context, req resource.CreateReque
 	}
 	resp.Diagnostics.Append(r.apply(ctx, &plan, e)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, plan.ProjectID, r.client, true)...)
 }
 
 func (r *exclusionResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -327,6 +325,7 @@ func (r *exclusionResource) Read(ctx context.Context, req resource.ReadRequest, 
 	}
 	resp.Diagnostics.Append(r.apply(ctx, &state, e)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, state.ProjectID, r.client, false)...)
 }
 
 func (r *exclusionResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -389,4 +388,9 @@ func (r *exclusionResource) ImportState(ctx context.Context, req resource.Import
 	if project != "" {
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), project)...)
 	}
+}
+
+// ModifyPlan replaces the resource only when its effective project changes (see projectIDAttribute).
+func (r *exclusionResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	planProjectReplace(ctx, r.client, req, resp)
 }

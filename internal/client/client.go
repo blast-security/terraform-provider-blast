@@ -34,6 +34,14 @@ type Config struct {
 	HTTPClient   *http.Client
 }
 
+// DefaultProjectID returns the provider-level project ID ("" means all cloud units).
+func (c *Client) DefaultProjectID() string {
+	if c == nil {
+		return ""
+	}
+	return c.cfg.ProjectID
+}
+
 // Client is safe for concurrent use.
 type Client struct {
 	cfg  Config

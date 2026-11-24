@@ -60,7 +60,7 @@ More in `examples/automation-rules`.
   * `allow_exclusion_request`, `allow_request_for`, `max_exclusion_duration_days` (API default 180): the "request an exclusion" button. These need `use_notification_routing_rules`.
   * `notify_on_review`, `notify_requester_on_expiry`: see the table above.
 * `jira` (Optional, `EXCLUSION_REQUEST_CREATED` only) `project` (the project **key**), `issue_type`, `summary`, `update_on_review`.
-* `project_id` (Optional) Overrides the provider's project. Forces replacement.
+* `project_id` (Optional) Overrides the provider's project. Changing the effective project (this value, or the provider's `project_id` when unset) forces replacement. Writing out the provider's project explicitly, or adding it after an import by bare ID, does not.
 
 ## Attributes
 

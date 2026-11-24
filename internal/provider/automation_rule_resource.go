@@ -21,6 +21,7 @@ import (
 
 var (
 	_ resource.Resource                = &automationRuleResource{}
+	_ resource.ResourceWithModifyPlan  = &automationRuleResource{}
 	_ resource.ResourceWithImportState = &automationRuleResource{}
 )
 
@@ -113,11 +114,7 @@ func (r *automationRuleResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Computed:      true,
 				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
 			},
-			"project_id": schema.StringAttribute{
-				Optional:      true,
-				Description:   "Blast project ID. Overrides the provider default.",
-				PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
-			},
+			"project_id": projectIDAttribute(),
 			"name": schema.StringAttribute{
 				Required:    true,
 				Description: "Rule name.",
@@ -433,6 +430,7 @@ func (r *automationRuleResource) Create(ctx context.Context, req resource.Create
 	}
 	resp.Diagnostics.Append(r.apply(&plan, a)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, plan.ProjectID, r.client, true)...)
 }
 
 func (r *automationRuleResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -452,6 +450,7 @@ func (r *automationRuleResource) Read(ctx context.Context, req resource.ReadRequ
 	}
 	resp.Diagnostics.Append(r.apply(&state, a)...)
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, state.ProjectID, r.client, false)...)
 }
 
 // Update sends the whole rule (PUT replaces it), so it also removes actions the rule had outside
@@ -496,4 +495,9 @@ func (r *automationRuleResource) ImportState(ctx context.Context, req resource.I
 	if project != "" {
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), project)...)
 	}
+}
+
+// ModifyPlan replaces the resource only when its effective project changes (see projectIDAttribute).
+func (r *automationRuleResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	planProjectReplace(ctx, r.client, req, resp)
 }
