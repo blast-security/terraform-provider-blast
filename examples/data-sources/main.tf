@@ -28,8 +28,15 @@ data "blast_automation_rules" "disabled" {
   depends_on = [blast_automation_rule.coverage]
 }
 
+# Gaps are project-scoped: the API rejects a request without a specific project.
 data "blast_gap" "example" {
-  id = "gap-seed-1"
+  id         = "gap-seed-1"
+  project_id = "prj-default"
+}
+
+data "blast_gaps" "open" {
+  project_id = "prj-default"
+  tab        = "open"
 }
 
 output "automation_rule_id" {
@@ -42,6 +49,10 @@ output "automation_rules_count" {
 
 output "disabled_rules_count" {
   value = length(data.blast_automation_rules.disabled.rules)
+}
+
+output "gaps_count" {
+  value = length(data.blast_gaps.open.gaps)
 }
 
 output "gap_name" {

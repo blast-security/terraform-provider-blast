@@ -38,7 +38,6 @@ Create the client ID and secret in Blast under **Settings → Access Keys**.
 | Find cloud units for projects | `data "blast_cloud_units"` |
 | Automation rules (Slack / Jira notifications) | `resource "blast_automation_rule"` (create, update, delete, import) |
 | Get automation rule(s) | `data "blast_automation_rule"`, `data "blast_automation_rules"` |
-| Manage defense gaps | `resource "blast_gap"` (create, update, delete, import) |
 | Get security gap | `data "blast_gap"`, `data "blast_gaps"` |
 
 The two task-backed resources support `delivery_mode = "task"` (default) or `"open_pr"`. **Direct deploy is out of scope** because the API doesn't expose it.

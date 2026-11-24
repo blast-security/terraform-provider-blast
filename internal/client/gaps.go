@@ -77,24 +77,6 @@ type GapDetail struct {
 	UpdatedAt          string                `json:"updatedAt"`
 }
 
-// CreateGap is both the POST body (create) and PUT body (full replacement).
-type CreateGap struct {
-	ExternalKey        string                `json:"externalKey,omitempty"`
-	Name               string                `json:"name"`
-	Description        string                `json:"description,omitempty"`
-	Category           string                `json:"category"`
-	Type               string                `json:"type"`
-	PriorityScore      int                   `json:"priorityScore"`
-	PriorityLevel      string                `json:"priorityLevel"`
-	IsQuickWin         bool                  `json:"isQuickWin"`
-	Status             string                `json:"status,omitempty"`
-	GainPoints         *int                  `json:"gainPoints,omitempty"`
-	PriorityIndicators GapPriorityIndicators `json:"priorityIndicators"`
-	Mitigation         GapMitigation         `json:"mitigation"`
-	LastDetectedAt     string                `json:"lastDetectedAt,omitempty"`
-	ResolvedAt         string                `json:"resolvedAt,omitempty"`
-}
-
 // GapListFilters holds optional query parameters for GET /gaps.
 type GapListFilters struct {
 	Tab           string
@@ -107,26 +89,10 @@ type GapListFilters struct {
 	Name          string
 }
 
-func (c *Client) CreateGap(ctx context.Context, project string, in CreateGap) (*GapDetail, error) {
-	var out GapDetail
-	err := c.Do(ctx, http.MethodPost, "/gaps", RequestOptions{ProjectID: project}, in, &out)
-	return &out, err
-}
-
 func (c *Client) GetGap(ctx context.Context, project, id string) (*GapDetail, error) {
 	var out GapDetail
 	err := c.Do(ctx, http.MethodGet, "/gaps/"+url.PathEscape(id), RequestOptions{ProjectID: project}, nil, &out)
 	return &out, err
-}
-
-func (c *Client) UpdateGap(ctx context.Context, project, id string, in CreateGap) (*GapDetail, error) {
-	var out GapDetail
-	err := c.Do(ctx, http.MethodPut, "/gaps/"+url.PathEscape(id), RequestOptions{ProjectID: project}, in, &out)
-	return &out, err
-}
-
-func (c *Client) DeleteGap(ctx context.Context, project, id string) error {
-	return c.Do(ctx, http.MethodDelete, "/gaps/"+url.PathEscape(id), RequestOptions{ProjectID: project}, nil, nil)
 }
 
 func (c *Client) ListGaps(ctx context.Context, project string, filters GapListFilters) ([]GapListItem, error) {

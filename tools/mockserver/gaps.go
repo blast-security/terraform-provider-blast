@@ -9,6 +9,9 @@ import (
 
 func registerGaps(api *http.ServeMux, s *store, ext string) {
 	api.HandleFunc("GET "+ext+"/gaps", func(w http.ResponseWriter, r *http.Request) {
+		if !gapProjectOK(w, r) {
+			return
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		q := r.URL.Query()
@@ -63,6 +66,9 @@ func registerGaps(api *http.ServeMux, s *store, ext string) {
 	})
 
 	api.HandleFunc("POST "+ext+"/gaps", func(w http.ResponseWriter, r *http.Request) {
+		if !gapProjectOK(w, r) {
+			return
+		}
 		var in obj
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			writeJSON(w, 400, obj{"message": "invalid JSON"})
@@ -110,6 +116,9 @@ func registerGaps(api *http.ServeMux, s *store, ext string) {
 	})
 
 	api.HandleFunc("GET "+ext+"/gaps/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !gapProjectOK(w, r) {
+			return
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		g, ok := s.gaps[r.PathValue("id")]
@@ -121,6 +130,9 @@ func registerGaps(api *http.ServeMux, s *store, ext string) {
 	})
 
 	api.HandleFunc("PUT "+ext+"/gaps/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !gapProjectOK(w, r) {
+			return
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		id := r.PathValue("id")
@@ -175,6 +187,9 @@ func registerGaps(api *http.ServeMux, s *store, ext string) {
 	})
 
 	api.HandleFunc("DELETE "+ext+"/gaps/{id}", func(w http.ResponseWriter, r *http.Request) {
+		if !gapProjectOK(w, r) {
+			return
+		}
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		id := r.PathValue("id")
@@ -319,4 +334,13 @@ func applyGapTimestamps(in obj) {
 			delete(in, "resolvedAt")
 		}
 	}
+}
+
+// gapProjectOK rejects requests without a specific project, as the API does for every gaps route.
+func gapProjectOK(w http.ResponseWriter, r *http.Request) bool {
+	if p := r.Header.Get("x-project-id"); p == "" || p == "all" {
+		writeJSON(w, 400, obj{"message": "Gaps are project-scoped: send a specific x-project-id"})
+		return false
+	}
+	return true
 }
