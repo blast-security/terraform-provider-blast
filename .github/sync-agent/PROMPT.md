@@ -1,7 +1,8 @@
 # Spec-sync agent prompt
 
-This is the prompt for the AI step of the bff-hub spec sync (`scripts/terraform-provider-sync.py`). The bff-hub workflow
-passes it to the agent verbatim, together with `AGENTS.md`, `terraform-sync-policy.json` and the generator's summary.
+This is the prompt for the AI step of the spec sync (the job that turns External API changes into PRs here). The sync
+workflow passes it to the agent verbatim, together with `AGENTS.md`, `terraform-sync-policy.json` and the generator's
+summary. The workflow, not the agent, opens and labels the PR.
 Changes to this file need maintainer review (CODEOWNERS).
 
 ---

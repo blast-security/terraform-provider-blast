@@ -1,6 +1,6 @@
 ## What and why
 
-<!-- One or two sentences. For a sync PR: the bff-hub commit and which API objects changed. -->
+<!-- One or two sentences. For a sync PR: which API objects changed. -->
 
 ## Types added or changed
 

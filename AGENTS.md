@@ -58,7 +58,7 @@ scripts/probe_expiry_endpoint.sh  safe probe of an internal endpoint (diagnostic
 examples/                       complete, projects, provider, smoke-readonly (no writes), live-test (step-by-step writes)
 docs/                           Terraform Registry docs (one file per resource/data source, registry format)
 terraform-sync-policy.json      which API objects may be resources vs data sources (product-owned, see section 11)
-.github/sync-agent/PROMPT.md    instructions for the AI step of the bff-hub spec sync
+.github/sync-agent/PROMPT.md    instructions for the AI step of the spec sync
 .github/workflows/              test.yml (PR/main), release.yml (tags v*), live-smoke.yml (manual/scheduled, real tenant)
 ```
 
@@ -87,7 +87,7 @@ terraform-sync-policy.json      which API objects may be resources vs data sourc
 12. **No resource without a product decision.** A resource exists only if `terraform-sync-policy.json` lists it as
     `approved`. Anything Blast computes or scores (gaps, findings, coverage, risk) is a data source only: a resource would
     overwrite Blast's own assessment on every apply. New API objects default to data sources. `policy_test.go` enforces this.
-13. **Generated code is a draft, never a deliverable.** `*_gen.go`, the bff-hub "starting point" header and `rawJSON` must
+13. **Generated code is a draft, never a deliverable.** `*_gen.go`, the generator's "starting point" header and `rawJSON` must
     not reach `main`. Follow section 11. `TestNoUnfinishedGeneratedCode` enforces this.
 
 ## 5. Architecture and behaviour (read before editing)
@@ -231,7 +231,7 @@ Work on a branch and open a PR to `develop`; merge after the provider release is
 
 ## 11. Generated code and the spec-sync agent
 
-The bff-hub job `scripts/terraform-provider-sync.py` reads the External API spec, writes `*_gen.go` skeletons and opens a
+The spec-sync job reads the External API spec, writes `*_gen.go` skeletons and opens a
 PR here; an AI step then finishes the code. Reviews of the first two sync PRs found the same classes of bugs, so they are
 now rules, most of them enforced by tests. The agent's prompt is `.github/sync-agent/PROMPT.md`.
 

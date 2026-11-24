@@ -1,5 +1,5 @@
 {
-  "_about": "Which Blast External API objects the provider exposes, and how. Read by the bff-hub spec-sync generator, the sync AI agent, and internal/provider/policy_test.go. A new resource needs a human (product) decision recorded here BEFORE any code is generated. Data sources may be added by the bot. Edit by hand; CODEOWNERS requires product review.",
+  "_about": "Which Blast External API objects the provider exposes, and how. Read by the spec-sync generator, the sync AI agent, and internal/provider/policy_test.go. A new resource needs a human (product) decision recorded here BEFORE any code is generated. Data sources may be added by the bot. Edit by hand; CODEOWNERS requires product review.",
   "defaults": {
     "new_api_object": "data_source_only",
     "_note": "An API object not listed below gets data sources only. The generator must never create a resource for it; it opens a 'needs product decision' issue instead."
