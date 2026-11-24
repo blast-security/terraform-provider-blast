@@ -36,6 +36,7 @@ Create the client ID and secret in Blast under **Settings → Access Keys**.
 | Change security controls (SCP/RCP) | `resource "blast_security_control_change"` |
 | Projects | `resource "blast_project"`, `data "blast_project"`, `data "blast_projects"` |
 | Find cloud units for projects | `data "blast_cloud_units"` |
+| Automation rules (Slack / Jira notifications) | `resource "blast_automation_rule"` (create, update, delete, import) |
 
 The two task-backed resources support `delivery_mode = "task"` (default) or `"open_pr"`. **Direct deploy is out of scope** because the API doesn't expose it.
 For full docs, see [`docs/`](docs/). For a working config covering every resource and data source, see [`examples/complete`](examples/complete/main.tf).
