@@ -22,6 +22,12 @@ data "blast_automation_rules" "all" {
   depends_on = [blast_automation_rule.coverage]
 }
 
+# active = false is a real filter (disabled rules only); leaving it unset returns both.
+data "blast_automation_rules" "disabled" {
+  active     = false
+  depends_on = [blast_automation_rule.coverage]
+}
+
 data "blast_gap" "example" {
   id = "gap-seed-1"
 }
@@ -32,6 +38,10 @@ output "automation_rule_id" {
 
 output "automation_rules_count" {
   value = length(data.blast_automation_rules.all.rules)
+}
+
+output "disabled_rules_count" {
+  value = length(data.blast_automation_rules.disabled.rules)
 }
 
 output "gap_name" {

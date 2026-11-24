@@ -13,14 +13,16 @@ Look up a single security gap by ID. A gap represents a detected security postur
 
 ```terraform
 data "blast_gap" "example" {
-  id = "<GAP_ID>"
+  id         = "<GAP_ID>"
+  project_id = "<PROJECT_ID>" # or set project_id on the provider
 }
 ```
 
 ## Argument Reference
 
 * `id` (Required) Gap ID.
-* `project_id` (Optional) Overrides the provider project.
+* `project_id` (Optional) Overrides the provider project. Gaps belong to one project: the API rejects the request
+  unless a specific project is set here or on the provider (the default "All Cloud Units" scope is not accepted).
 
 ## Attribute Reference
 

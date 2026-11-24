@@ -100,6 +100,9 @@ type AutomationRuleSummary struct {
 	ModifiedAt   string   `json:"modifiedAt"`
 }
 
+// automationsPageSize is the API's maximum page size for GET /automations (it rejects larger).
+const automationsPageSize = 200
+
 func (c *Client) ListAutomationRules(ctx context.Context, project, trigger string, active *bool) ([]AutomationRuleSummary, error) {
 	q := url.Values{}
 	if trigger != "" {
@@ -112,5 +115,5 @@ func (c *Client) ListAutomationRules(ctx context.Context, project, trigger strin
 			q.Set("active", "false")
 		}
 	}
-	return listPaged[AutomationRuleSummary](ctx, c, "/automations", project, q)
+	return listPagedSize[AutomationRuleSummary](ctx, c, "/automations", project, q, automationsPageSize)
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -144,6 +145,10 @@ func registerAutomations(api *http.ServeMux, s *store, ext string) {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		q := r.URL.Query()
+		if n, err := strconv.Atoi(q.Get("size")); q.Get("size") != "" && (err != nil || n < 1 || n > 200) {
+			writeJSON(w, 400, obj{"message": "size must be between 1 and 200"}) // as the API validates it
+			return
+		}
 		var out []obj
 		for id, rec := range s.automations {
 			body := rec["body"].(obj)

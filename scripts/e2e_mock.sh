@@ -141,15 +141,23 @@ step "data sources: create rule and read back via data sources"
 
 step "data sources: blast_automation_rule matches created rule"
 RULE_ID=$("$TF" output -raw automation_rule_id)
-test -n "$RULE_ID" && echo "ok: blast_automation_rule.id=$RULE_ID"
+[ -n "$RULE_ID" ] || { echo "FAIL: blast_automation_rule.id is empty"; exit 1; }
+echo "ok: blast_automation_rule.id=$RULE_ID"
 
 step "data sources: blast_automation_rules returns at least one rule"
 COUNT=$("$TF" output -raw automation_rules_count)
-test "$COUNT" -ge 1 && echo "ok: blast_automation_rules.rules count=$COUNT"
+[ "$COUNT" -ge 1 ] || { echo "FAIL: blast_automation_rules returned no rules"; exit 1; }
+echo "ok: blast_automation_rules.rules count=$COUNT"
+
+step "data sources: active = false filters out the (active) rule"
+DISABLED=$("$TF" output -raw disabled_rules_count)
+[ "$DISABLED" -eq 0 ] || { echo "FAIL: active = false returned $DISABLED rules"; exit 1; }
+echo "ok: active = false returned 0 rules"
 
 step "data sources: blast_gap reads pre-seeded gap"
 GAP_NAME=$("$TF" output -raw gap_name)
-test -n "$GAP_NAME" && echo "ok: blast_gap.name=$GAP_NAME"
+[ -n "$GAP_NAME" ] || { echo "FAIL: blast_gap.name is empty"; exit 1; }
+echo "ok: blast_gap.name=$GAP_NAME"
 
 step "data sources: destroy"
 "$TF" destroy -auto-approve -no-color >/dev/null

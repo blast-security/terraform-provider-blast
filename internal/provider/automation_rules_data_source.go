@@ -30,7 +30,7 @@ var automationRuleSummaryAttrTypes = map[string]attr.Type{
 type automationRulesDSModel struct {
 	ProjectID types.String `tfsdk:"project_id"`
 	Trigger   types.String `tfsdk:"trigger"`
-	Active    types.String `tfsdk:"active"`
+	Active    types.Bool   `tfsdk:"active"`
 	Rules     types.List   `tfsdk:"rules"`
 }
 
@@ -44,7 +44,7 @@ func (d *automationRulesDataSource) Schema(_ context.Context, _ datasource.Schem
 		Attributes: map[string]schema.Attribute{
 			"project_id": schema.StringAttribute{Optional: true, Description: "Blast project ID. Overrides the provider default."},
 			"trigger":    schema.StringAttribute{Optional: true, Description: "Filter by trigger type (e.g. BLOCKED_ACTIVITY)."},
-			"active":     schema.StringAttribute{Optional: true, Description: `Filter by active state: "true" or "false".`},
+			"active":     schema.BoolAttribute{Optional: true, Description: "Only active (true) or disabled (false) rules. Unset returns both."},
 			"rules": schema.ListNestedAttribute{
 				Computed: true,
 				NestedObject: schema.NestedAttributeObject{
@@ -76,15 +76,11 @@ func (d *automationRulesDataSource) Read(ctx context.Context, req datasource.Rea
 		return
 	}
 
+	// Unset (null) means no filter; false is a real filter for disabled rules.
 	var active *bool
 	if !m.Active.IsNull() && !m.Active.IsUnknown() {
-		if v := m.Active.ValueString(); v == "true" {
-			t := true
-			active = &t
-		} else if v == "false" {
-			f := false
-			active = &f
-		}
+		v := m.Active.ValueBool()
+		active = &v
 	}
 
 	list, err := d.client.ListAutomationRules(ctx, m.ProjectID.ValueString(), m.Trigger.ValueString(), active)

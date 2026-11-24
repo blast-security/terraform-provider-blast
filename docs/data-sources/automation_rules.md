@@ -18,7 +18,7 @@ data "blast_automation_rules" "all" {}
 # Only active rules for a specific trigger
 data "blast_automation_rules" "blocked_active" {
   trigger = "BLOCKED_ACTIVITY"
-  active  = "true"
+  active  = true
 }
 ```
 
@@ -26,7 +26,7 @@ data "blast_automation_rules" "blocked_active" {
 
 * `project_id` (Optional) Overrides the provider project.
 * `trigger` (Optional) Filter to rules of this trigger type (e.g. `BLOCKED_ACTIVITY`).
-* `active` (Optional) Filter by active state: `"true"` or `"false"`.
+* `active` (Optional, bool) Only active (`true`) or disabled (`false`) rules. Unset returns both.
 
 ## Attribute Reference
 
