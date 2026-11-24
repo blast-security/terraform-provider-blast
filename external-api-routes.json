@@ -1,0 +1,87 @@
+{
+  "_generatedBy": "Generated from the Blast External API spec: the routes each resource and data source uses. Do not edit by hand.",
+  "resources": {
+    "blast_automation_rule": [
+      "DELETE /api/v1/external/automations/{id}",
+      "GET /api/v1/external/automations/{id}",
+      "POST /api/v1/external/automations",
+      "PUT /api/v1/external/automations/{id}"
+    ],
+    "blast_exclusion": [
+      "DELETE /api/v1/external/exclusions/{id}",
+      "GET /api/v1/external/exclusions/{id}",
+      "PATCH /api/v1/external/exclusions/{id}",
+      "POST /api/v1/external/exclusions"
+    ],
+    "blast_gap": [
+      "DELETE /api/v1/external/gaps/{id}",
+      "GET /api/v1/external/gaps/{id}",
+      "POST /api/v1/external/gaps",
+      "PUT /api/v1/external/gaps/{id}"
+    ],
+    "blast_guardrail_deployment": [
+      "DELETE /api/v1/external/tasks/{id}",
+      "GET /api/v1/external/tasks/{id}",
+      "PATCH /api/v1/external/tasks/{id}",
+      "POST /api/v1/external/tasks",
+      "POST /api/v1/external/tasks/{id}/terraform-pr"
+    ],
+    "blast_project": [
+      "DELETE /api/v1/external/projects/{id}",
+      "GET /api/v1/external/projects/name-available",
+      "GET /api/v1/external/projects/{id}",
+      "POST /api/v1/external/projects",
+      "PUT /api/v1/external/projects/{id}"
+    ],
+    "blast_security_control_change": [
+      "DELETE /api/v1/external/tasks/{id}",
+      "GET /api/v1/external/tasks/{id}",
+      "PATCH /api/v1/external/tasks/{id}",
+      "POST /api/v1/external/tasks/control-changes",
+      "POST /api/v1/external/tasks/{id}/terraform-pr"
+    ]
+  },
+  "dataSources": {
+    "blast_automation_rule": [
+      "GET /api/v1/external/automations/{id}"
+    ],
+    "blast_automation_rules": [
+      "GET /api/v1/external/automations"
+    ],
+    "blast_cloud_units": [
+      "GET /api/v1/external/projects/organizations"
+    ],
+    "blast_exclusion": [
+      "GET /api/v1/external/exclusions/{id}"
+    ],
+    "blast_exclusions": [
+      "GET /api/v1/external/exclusions"
+    ],
+    "blast_gap": [
+      "GET /api/v1/external/gaps/{id}"
+    ],
+    "blast_gaps": [
+      "GET /api/v1/external/gaps"
+    ],
+    "blast_guardrail": [
+      "GET /api/v1/external/guardrails/{catalogId}"
+    ],
+    "blast_guardrails": [
+      "GET /api/v1/external/guardrails"
+    ],
+    "blast_project": [
+      "GET /api/v1/external/projects",
+      "GET /api/v1/external/projects/{id}"
+    ],
+    "blast_projects": [
+      "GET /api/v1/external/projects"
+    ],
+    "blast_security_control": [
+      "GET /api/v1/external/security-controls/{id}",
+      "GET /api/v1/external/security-controls/{id}/policy"
+    ],
+    "blast_security_controls": [
+      "GET /api/v1/external/security-controls"
+    ]
+  }
+}
