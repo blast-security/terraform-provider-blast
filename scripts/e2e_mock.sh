@@ -211,6 +211,7 @@ output "gap_id"          { value = blast_gap.test.id }
 output "gap_status"      { value = blast_gap.test.status }
 output "gap_gain_points" { value = blast_gap.test.gain_points }
 output "gaps_count"      { value = length(data.blast_gaps.open.gaps) }
+output "gap_resolved_at" { value = coalesce(blast_gap.test.resolved_at, "none") }
 TF
 
 step "gaps: create"
@@ -241,6 +242,19 @@ step "gaps: priority_level change in place"
 perl -pi -e 's/priority_level = "high"/priority_level = "critical"/' main.tf
 expect_plan "1 to change"
 "$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "gaps: resolve, then reopen (resolved_at is stamped, then cleared)"
+perl -pi -e 's/^  is_quick_win   = false$/  is_quick_win   = false\n  status         = "resolved"/' main.tf
+expect_plan "1 to change"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+RES=$("$TF" output -raw gap_resolved_at)
+[ "$RES" != "none" ] || { echo "FAIL: resolved gap has no resolved_at"; exit 1; }
+echo "ok: resolved_at=$RES"
+perl -pi -e 's/^  status         = "resolved"$/  status         = "open"/' main.tf
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+RES=$("$TF" output -raw gap_resolved_at)
+[ "$RES" = "none" ] || { echo "FAIL: reopened gap still has resolved_at=$RES"; exit 1; }
+echo "ok: reopened gap has no resolved_at"
 
 step "gaps: import round-trip"
 "$TF" state rm -no-color blast_gap.test >/dev/null

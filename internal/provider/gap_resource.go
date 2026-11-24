@@ -219,8 +219,8 @@ func (r *gapResource) Schema(_ context.Context, _ resource.SchemaRequest, resp *
 			"resolved_at": schema.StringAttribute{
 				Optional:      true,
 				Computed:      true,
-				Description:   "ISO 8601 timestamp when the gap was resolved. When status is resolved and this is omitted, the API defaults it to the current time.",
-				PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()},
+				Description:   "ISO 8601 timestamp when the gap was resolved. When status is resolved and this is omitted, the API defaults it to the current time; when the status is anything else and this is omitted, it is cleared.",
+				PlanModifiers: []planmodifier.String{resolvedAtFollowsStatus{}},
 			},
 			"created_at": schema.StringAttribute{
 				Computed:      true,
@@ -447,3 +447,39 @@ func (r *gapResource) ImportState(ctx context.Context, req resource.ImportStateR
 	}
 }
 
+// resolvedAtFollowsStatus plans resolved_at when the configuration leaves it out. An update is a
+// full replacement in which the API keeps a resolvedAt that is sent, stamps "now" when the status
+// is resolved and none is sent, and clears it otherwise. So, without a configured value:
+//   - status not resolved: null (and nothing is sent, so a reopened gap is not left "resolved");
+//   - status stays resolved: keep the stored timestamp;
+//   - status becomes resolved, or is unknown: unknown until the API stamps it.
+type resolvedAtFollowsStatus struct{}
+
+func (resolvedAtFollowsStatus) Description(_ context.Context) string {
+	return "Without a configured value, resolved_at is cleared unless the status is resolved."
+}
+
+func (m resolvedAtFollowsStatus) MarkdownDescription(ctx context.Context) string {
+	return m.Description(ctx)
+}
+
+func (resolvedAtFollowsStatus) PlanModifyString(ctx context.Context, req planmodifier.StringRequest, resp *planmodifier.StringResponse) {
+	if !req.ConfigValue.IsNull() || req.Plan.Raw.IsNull() {
+		return // configured by the user, or the resource is being destroyed
+	}
+	var planStatus, stateStatus types.String
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("status"), &planStatus)...)
+	if !req.State.Raw.IsNull() {
+		resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("status"), &stateStatus)...)
+	}
+	switch {
+	case planStatus.IsUnknown():
+		resp.PlanValue = types.StringUnknown()
+	case planStatus.ValueString() != "resolved":
+		resp.PlanValue = types.StringNull()
+	case stateStatus.ValueString() == "resolved" && !req.StateValue.IsNull():
+		resp.PlanValue = req.StateValue
+	default:
+		resp.PlanValue = types.StringUnknown()
+	}
+}

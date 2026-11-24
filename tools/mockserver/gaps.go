@@ -104,6 +104,7 @@ func registerGaps(api *http.ServeMux, s *store, ext string) {
 		if in["gainPoints"] == nil {
 			in["gainPoints"] = 0.0
 		}
+		applyGapTimestamps(in)
 		s.gaps[in["id"].(string)] = in
 		writeJSON(w, 201, gapDetail(in))
 	})
@@ -168,6 +169,7 @@ func registerGaps(api *http.ServeMux, s *store, ext string) {
 		if in["gainPoints"] == nil {
 			in["gainPoints"] = 0.0
 		}
+		applyGapTimestamps(in)
 		s.gaps[id] = in
 		writeJSON(w, 200, gapDetail(in))
 	})
@@ -300,4 +302,21 @@ func containsStr(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// applyGapTimestamps does what the API does on create and on PUT (a full replacement):
+// lastDetectedAt defaults to now; resolvedAt is kept when sent, stamped now when the status is
+// resolved and none was sent, and removed otherwise.
+func applyGapTimestamps(in obj) {
+	now := time.Now().UTC().Format(time.RFC3339)
+	if strVal(in["lastDetectedAt"]) == "" {
+		in["lastDetectedAt"] = now
+	}
+	if strVal(in["resolvedAt"]) == "" {
+		if in["status"] == "resolved" {
+			in["resolvedAt"] = now
+		} else {
+			delete(in, "resolvedAt")
+		}
+	}
 }
