@@ -49,6 +49,15 @@ func newStore() *store {
 				"priorityLevel": "medium", "isQuickWin": true,
 				"status": "open", "gainPoints": 10.0,
 				"createdAt": "2026-01-01T00:00:00Z", "updatedAt": "2026-01-01T00:00:00Z",
+				"priorityIndicators": obj{
+					"effectiveExposure":    obj{"count": 0, "weight": 0.0, "maxWeight": 0.0},
+					"suspiciousActivities": obj{"count": 0, "weight": 0.0, "maxWeight": 0.0},
+					"violationsFound":      obj{"count": 0, "weight": 0.0, "maxWeight": 0.0},
+					"threatIntel":          obj{"count": 0, "weight": 0.0, "maxWeight": 0.0, "threatId": "", "link": ""},
+				},
+				"mitigation": obj{
+					"description": "Remove unused exclusion", "link": "", "guardrailName": "", "guardrailId": "", "impactLabel": "",
+				},
 			},
 		},
 		guardrails: []obj{

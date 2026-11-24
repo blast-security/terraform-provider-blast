@@ -159,6 +159,105 @@ GAP_NAME=$("$TF" output -raw gap_name)
 [ -n "$GAP_NAME" ] || { echo "FAIL: blast_gap.name is empty"; exit 1; }
 echo "ok: blast_gap.name=$GAP_NAME"
 
+step "data sources: blast_gaps list data source returns at least the seed gap"
+# The data-sources example has no blast_gaps usage; we probe it inline from this directory.
+cat > gaps_ds.tf <<'TF'
+data "blast_gaps" "all" {}
+output "gaps_all_count" { value = length(data.blast_gaps.all.gaps) }
+TF
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+GAPS_COUNT=$("$TF" output -raw gaps_all_count)
+[ "$GAPS_COUNT" -ge 1 ] || { echo "FAIL: blast_gaps returned no gaps (expected seed gap)"; exit 1; }
+echo "ok: blast_gaps.gaps count=$GAPS_COUNT"
+rm gaps_ds.tf
+
 step "data sources: destroy"
 "$TF" destroy -auto-approve -no-color >/dev/null
+
+# ---------- gap resource (examples/gaps) ----------
+mkdir "$WORK/gaps" && cd "$WORK/gaps"
+cat > main.tf <<'TF'
+terraform {
+  required_providers { blast = { source = "blast-security/blast" } }
+}
+provider "blast" { project_id = "prj-test" }
+
+resource "blast_gap" "test" {
+  project_id     = "prj-test"
+  name           = "IAM unguarded"
+  category       = "missing_defense"
+  type           = "CONFIGURATION_RESTRICTION"
+  priority_score = 80
+  priority_level = "high"
+  is_quick_win   = false
+  mitigation = {
+    description = "Deploy a guardrail."
+  }
+  priority_indicators = {
+    effective_exposure    = { count = 5, weight = 20, max_weight = 50 }
+    suspicious_activities = { count = 0, weight = 0, max_weight = 20 }
+    violations_found      = { count = 2, weight = 10, max_weight = 30 }
+    threat_intel          = { count = 0, weight = 0, max_weight = 10 }
+  }
+}
+
+data "blast_gaps" "open" {
+  project_id = "prj-test"
+  tab        = "open"
+  depends_on = [blast_gap.test]
+}
+
+output "gap_id"          { value = blast_gap.test.id }
+output "gap_status"      { value = blast_gap.test.status }
+output "gap_gain_points" { value = blast_gap.test.gain_points }
+output "gaps_count"      { value = length(data.blast_gaps.open.gaps) }
+TF
+
+step "gaps: create"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+GAP_ID=$("$TF" output -raw gap_id)
+[ -n "$GAP_ID" ] || { echo "FAIL: blast_gap.id is empty"; exit 1; }
+echo "ok: blast_gap.id=$GAP_ID"
+
+step "gaps: defaults filled by API (status=open, gain_points=0)"
+STATUS=$("$TF" output -raw gap_status)
+[ "$STATUS" = "open" ] || { echo "FAIL: expected status=open, got $STATUS"; exit 1; }
+echo "ok: status=$STATUS"
+GAIN=$("$TF" output -raw gap_gain_points)
+[ "$GAIN" = "0" ] || { echo "FAIL: expected gain_points=0, got $GAIN"; exit 1; }
+echo "ok: gain_points=$GAIN"
+
+step "gaps: blast_gaps data source returns created gap"
+COUNT=$("$TF" output -raw gaps_count)
+[ "$COUNT" -ge 1 ] || { echo "FAIL: blast_gaps returned no gaps"; exit 1; }
+echo "ok: blast_gaps.gaps count=$COUNT"
+
+step "gaps: in-place update (name change)"
+perl -pi -e 's/IAM unguarded/IAM unguarded - updated/' main.tf
+expect_plan "1 to change"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "gaps: priority_level change in place"
+perl -pi -e 's/priority_level = "high"/priority_level = "critical"/' main.tf
+expect_plan "1 to change"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "gaps: import round-trip"
+"$TF" state rm -no-color blast_gap.test >/dev/null
+"$TF" import -no-color blast_gap.test "prj-test/$GAP_ID" >/dev/null
+"$TF" plan -no-color >plan.out 2>&1 || true
+if grep -q "must be replaced" plan.out; then cat plan.out; echo "FAIL: import caused replacement"; exit 1; fi
+echo "ok: import does not force replacement"
+"$TF" apply -auto-approve -no-color >/dev/null; expect_clean
+
+step "gaps: project_id change forces replacement"
+perl -pi -e 's/project_id\s*= "prj-test"/project_id = "prj-other"/' main.tf
+expect_plan "forces replacement"
+# Revert — do not actually apply the replacement
+perl -pi -e 's/project_id\s*= "prj-other"/project_id = "prj-test"/' main.tf
+
+step "gaps: destroy"
+"$TF" destroy -auto-approve -no-color >/dev/null
+grep -c "DELETE /api/v1/external/gaps/" "$WORK/mock.log" | xargs echo "ok: gap DELETE calls:"
+
 echo; echo "ALL E2E CHECKS PASSED"

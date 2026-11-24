@@ -6,6 +6,8 @@ FEATURES:
 * **New Data Source:** `blast_automation_rule`: Look up a single automation rule by ID.
 * **New Data Source:** `blast_automation_rules`: List automation rules with optional `trigger` and `active` filters.
 * **New Data Source:** `blast_gap`: Look up a single security gap by ID, including priority indicators and mitigation guidance.
+* **New Resource:** `blast_gap`: Create, update in place, delete and import defense gaps. `project_id` is required (gaps are project-scoped). `PUT` is a full replacement so all fields are sent on every update. Only `project_id` forces replacement.
+* **New Data Source:** `blast_gaps`: List defense gaps with optional filters (`tab`, `category`, `type`, `priority_level`, `status`, `is_quick_win`, `external_key`, `name`).
 
 ## 0.2.0 (Unreleased)
 
