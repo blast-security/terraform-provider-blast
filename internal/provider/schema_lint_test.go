@@ -19,11 +19,7 @@ import (
 )
 
 // Keep this short and tracked. Format: "<rule>: <resource>.<attribute path>".
-var knownViolations = map[string]string{
-	"empty-collection: blast_automation_rule.slack.allow_request_for": "fix/automation-rule-review",
-	"empty-object: blast_automation_rule.slack":                       "fix/automation-rule-review",
-	"empty-object: blast_automation_rule.conditions":                  "fix/automation-rule-review",
-}
+var knownViolations = map[string]string{}
 
 // lintExempt is for attributes the lint cannot judge, with the reason. Only write-once inputs that
 // Read never overwrites from the API qualify (task-backed resources). Product/maintainer review

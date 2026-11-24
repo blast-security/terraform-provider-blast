@@ -13,6 +13,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -251,4 +252,30 @@ func planProjectReplace(ctx context.Context, c *client.Client, req resource.Modi
 	if was != effectiveProject(planned, c) {
 		resp.RequiresReplace = append(resp.RequiresReplace, path.Root("project_id"))
 	}
+}
+
+// notEmptyObject rejects an optional object written as `{}`. The API drops an empty object, so
+// Terraform would read back null and fail with "inconsistent result after apply".
+func notEmptyObject() validator.Object { return notEmptyObjectValidator{} }
+
+type notEmptyObjectValidator struct{}
+
+func (notEmptyObjectValidator) Description(_ context.Context) string {
+	return "must set at least one attribute (omit the block instead of writing {})"
+}
+
+func (v notEmptyObjectValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v notEmptyObjectValidator) ValidateObject(ctx context.Context, req validator.ObjectRequest, resp *validator.ObjectResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	for _, a := range req.ConfigValue.Attributes() {
+		if !a.IsNull() {
+			return
+		}
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, "Empty block", req.Path.String()+" "+v.Description(ctx)+".")
 }

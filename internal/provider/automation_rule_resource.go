@@ -75,6 +75,8 @@ type automationRuleModel struct {
 	Slack            *automationSlackModel      `tfsdk:"slack"`
 	Jira             *automationJiraModel       `tfsdk:"jira"`
 	UnmanagedActions types.List                 `tfsdk:"unmanaged_actions"`
+	OtherChannels    types.List                 `tfsdk:"other_slack_channels"`
+	OverwriteConsole types.Bool                 `tfsdk:"overwrite_console_changes"`
 	CreatedAt        types.String               `tfsdk:"created_at"`
 	CreatedBy        types.String               `tfsdk:"created_by"`
 	ModifiedAt       types.String               `tfsdk:"modified_at"`
@@ -132,6 +134,7 @@ func (r *automationRuleResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Description: "Whether the rule runs. Defaults to true.",
 			},
 			"conditions": schema.SingleNestedAttribute{
+				Validators:  []validator.Object{notEmptyObject()},
 				Optional:    true,
 				Description: "BLOCKED_ACTIVITY only: limit the rule to some security controls or sources.",
 				Attributes: map[string]schema.Attribute{
@@ -140,7 +143,8 @@ func (r *automationRuleResource) Schema(_ context.Context, _ resource.SchemaRequ
 				},
 			},
 			"slack": schema.SingleNestedAttribute{
-				Optional: true,
+				Validators: []validator.Object{notEmptyObject()},
+				Optional:   true,
 				Description: "Post to Slack. Required for every trigger except EXCLUSION_REQUEST_CREATED, which takes slack, jira or both. " +
 					"Set channel, or (BLOCKED_ACTIVITY only) use_notification_routing_rules.",
 				Attributes: map[string]schema.Attribute{
@@ -161,6 +165,7 @@ func (r *automationRuleResource) Schema(_ context.Context, _ resource.SchemaRequ
 						Description: "BLOCKED_ACTIVITY with use_notification_routing_rules: offer a \"request an exclusion\" button.",
 					},
 					"allow_request_for": schema.ListAttribute{
+						Validators:  []validator.List{listvalidator.SizeAtLeast(1)},
 						Optional:    true,
 						ElementType: types.StringType,
 						Description: "Guardrail catalog ids the button may request exclusions for. Omitted means every guardrail in the activity. Needs allow_exclusion_request.",
@@ -193,6 +198,16 @@ func (r *automationRuleResource) Schema(_ context.Context, _ resource.SchemaRequ
 				Computed:    true,
 				ElementType: types.StringType,
 				Description: "Actions on the rule this resource cannot express (for example webhooks added in the console). An update replaces the whole rule and removes them.",
+			},
+			"other_slack_channels": schema.ListAttribute{
+				Computed:    true,
+				ElementType: types.StringType,
+				Description: "Further Slack channels set in the console. Terraform manages only slack.channel, so an update removes these.",
+			},
+			"overwrite_console_changes": schema.BoolAttribute{
+				Optional: true,
+				Description: "An update replaces the whole rule. When the rule has actions or Slack channels set in the console " +
+					"(unmanaged_actions, other_slack_channels), the plan fails unless this is true, so they are never deleted silently.",
 			},
 			"created_at":  schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
 			"created_by":  schema.StringAttribute{Computed: true, PlanModifiers: []planmodifier.String{stringplanmodifier.UseStateForUnknown()}},
@@ -399,6 +414,11 @@ func (r *automationRuleResource) apply(m *automationRuleModel, a *client.Automat
 	}
 
 	m.UnmanagedActions = toList(a.UnmanagedActions)
+	var others []string
+	if a.Slack != nil {
+		others = a.Slack.OtherChannels
+	}
+	m.OtherChannels = toList(others)
 	if len(a.UnmanagedActions) > 0 {
 		diags.AddWarning("Automation rule has actions Terraform cannot manage",
 			fmt.Sprintf("Rule %s also has: %s. The next update replaces the rule and removes them.", a.ID, strings.Join(a.UnmanagedActions, ", ")))
@@ -500,4 +520,35 @@ func (r *automationRuleResource) ImportState(ctx context.Context, req resource.I
 // ModifyPlan replaces the resource only when its effective project changes (see projectIDAttribute).
 func (r *automationRuleResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
 	planProjectReplace(ctx, r.client, req, resp)
+	refuseSilentOverwrite(ctx, req, resp)
+}
+
+// refuseSilentOverwrite fails a plan that would update (PUT, a full replacement) or replace a rule
+// that has actions or Slack channels set in the console, unless overwrite_console_changes = true.
+// Without changes to the rule, or on create and destroy, it does nothing.
+func refuseSilentOverwrite(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() || req.Plan.Raw.Equal(req.State.Raw) {
+		return
+	}
+	var unmanaged, others types.List
+	var overwrite types.Bool
+	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("unmanaged_actions"), &unmanaged)...)
+	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("other_slack_channels"), &others)...)
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("overwrite_console_changes"), &overwrite)...)
+	if resp.Diagnostics.HasError() || overwrite.ValueBool() {
+		return
+	}
+	var lost []string
+	for _, l := range []types.List{unmanaged, others} {
+		if vals, _ := strList(ctx, l); len(vals) > 0 {
+			lost = append(lost, vals...)
+		}
+	}
+	if len(lost) == 0 {
+		return
+	}
+	resp.Diagnostics.AddError("This change would delete parts of the rule set in the console",
+		fmt.Sprintf("An update replaces the whole automation rule, so it would remove: %s. Remove them in the console, "+
+			"add them to the configuration if the resource supports them, or set overwrite_console_changes = true to "+
+			"delete them.", strings.Join(lost, ", ")))
 }

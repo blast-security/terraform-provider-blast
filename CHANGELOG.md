@@ -6,6 +6,8 @@ FEATURES:
 
 BUG FIXES:
 
+* `blast_automation_rule`: a plan that would update or replace a rule with actions or Slack channels set in the console now fails and names them, instead of deleting them with a warning. Set `overwrite_console_changes = true` to delete them. New computed attribute `other_slack_channels`.
+* `blast_automation_rule`: `slack = {}`, `conditions = {}` and `slack.allow_request_for = []` are rejected at plan time. Before, they failed at apply with "inconsistent result".
 * `blast_exclusion`, `blast_automation_rule`, `blast_guardrail_deployment`, `blast_security_control_change`: a resource is replaced only when its effective project changes. Previously, importing by bare ID and then setting `project_id` (or writing out the provider's project explicitly) planned a destroy and re-create.
 
 ## 0.2.0 (Unreleased)
