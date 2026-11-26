@@ -18,6 +18,7 @@ import (
 
 var (
 	_ resource.Resource                   = &guardrailDeploymentResource{}
+	_ resource.ResourceWithModifyPlan     = &guardrailDeploymentResource{}
 	_ resource.ResourceWithImportState    = &guardrailDeploymentResource{}
 	_ resource.ResourceWithValidateConfig = &guardrailDeploymentResource{}
 )
@@ -157,6 +158,7 @@ func (r *guardrailDeploymentResource) Create(ctx context.Context, req resource.C
 	}
 	// Saving state even on PR failure: Terraform then marks the resource tainted.
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, plan.ProjectID, r.client, true)...)
 }
 
 func (r *guardrailDeploymentResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -197,6 +199,7 @@ func (r *guardrailDeploymentResource) Read(ctx context.Context, req resource.Rea
 		state.Name = types.StringValue(task.Name)
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, state.ProjectID, r.client, false)...)
 }
 
 func (r *guardrailDeploymentResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -251,4 +254,9 @@ func (r *guardrailDeploymentResource) ImportState(ctx context.Context, req resou
 	if project != "" {
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), project)...)
 	}
+}
+
+// ModifyPlan replaces the resource only when its effective project changes (see projectIDAttribute).
+func (r *guardrailDeploymentResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	planProjectReplace(ctx, r.client, req, resp)
 }

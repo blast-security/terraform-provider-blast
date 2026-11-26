@@ -133,7 +133,15 @@ func automationResponse(id string, in obj, meta obj) obj {
 		}
 		out["jira"] = jira
 	}
+	if oc, ok := meta["otherChannels"]; ok {
+		if slack, ok := out["slack"].(obj); ok {
+			slack["otherChannels"] = oc
+		}
+	}
 	for k, v := range meta {
+		if k == "otherChannels" {
+			continue
+		}
 		out[k] = v
 	}
 	return out
@@ -189,9 +197,24 @@ func registerAutomations(api *http.ServeMux, s *store, ext string) {
 		}
 		meta := rec["meta"].(obj)
 		delete(meta, "unmanagedActions") // PUT replaces every action
+		delete(meta, "otherChannels")
 		meta["modifiedAt"] = time.Now().UTC().Format(time.RFC3339Nano)
 		s.automations[r.PathValue("id")] = obj{"body": in, "meta": meta}
 		writeJSON(w, 200, automationResponse(r.PathValue("id"), in, meta))
+	})
+	// Mock only (not in the API): simulate a webhook and a second Slack channel added in the console.
+	api.HandleFunc("POST "+ext+"/_mock/automations/{id}/console-changes", func(w http.ResponseWriter, r *http.Request) {
+		s.mu.Lock()
+		defer s.mu.Unlock()
+		rec, ok := s.automations[r.PathValue("id")]
+		if !ok {
+			writeJSON(w, 404, obj{"message": "Automation rule not found"})
+			return
+		}
+		meta := rec["meta"].(obj)
+		meta["unmanagedActions"] = []string{"WEBHOOK"}
+		meta["otherChannels"] = []string{"sec-oncall"}
+		writeJSON(w, 200, obj{"ok": true})
 	})
 	api.HandleFunc("DELETE "+ext+"/automations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()

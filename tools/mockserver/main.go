@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -87,6 +88,9 @@ func page(data []obj) obj {
 	if data == nil {
 		data = []obj{}
 	}
+	// Stable order, like the real (sorted, paginated) API. Go map iteration is random, and a
+	// random order makes list data sources drift between plans.
+	sort.SliceStable(data, func(i, j int) bool { return fmt.Sprint(data[i]["id"]) < fmt.Sprint(data[j]["id"]) })
 	return obj{"data": data, "page": obj{"size": len(data), "number": 0, "totalElements": len(data), "totalPages": 1}}
 }
 

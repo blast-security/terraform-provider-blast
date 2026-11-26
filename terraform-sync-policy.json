@@ -1,0 +1,50 @@
+{
+  "_about": "Which Blast External API objects the provider exposes, and how. Read by the spec-sync generator, the sync AI agent, and internal/provider/policy_test.go. A new resource needs a human (product) decision recorded here BEFORE any code is generated. Data sources may be added by the bot. Edit by hand; CODEOWNERS requires product review.",
+  "defaults": {
+    "new_api_object": "data_source_only",
+    "_note": "An API object not listed below gets data sources only. The generator must never create a resource for it; it opens a 'needs product decision' issue instead."
+  },
+  "objects": {
+    "exclusions": {
+      "api_base": "/api/v1/external/exclusions",
+      "resource": { "name": "blast_exclusion", "status": "approved" },
+      "data_sources": ["blast_exclusion", "blast_exclusions"]
+    },
+    "guardrails": {
+      "api_base": "/api/v1/external/guardrails",
+      "resource": { "status": "denied", "reason": "Guardrails are Blast's catalog; customers deploy them, they don't define them." },
+      "data_sources": ["blast_guardrail", "blast_guardrails"]
+    },
+    "security_controls": {
+      "api_base": "/api/v1/external/security-controls",
+      "resource": { "status": "denied", "reason": "Changed only through tasks (blast_security_control_change)." },
+      "data_sources": ["blast_security_control", "blast_security_controls"]
+    },
+    "guardrail_deployment_tasks": {
+      "api_base": "/api/v1/external/tasks",
+      "resource": { "name": "blast_guardrail_deployment", "status": "approved", "experimental": true, "reason": "Task-backed; imperative. Planned redesign as a stateful security-control resource." },
+      "data_sources": []
+    },
+    "control_change_tasks": {
+      "api_base": "/api/v1/external/tasks/control-changes",
+      "resource": { "name": "blast_security_control_change", "status": "approved", "experimental": true },
+      "data_sources": []
+    },
+    "projects": {
+      "api_base": "/api/v1/external/projects",
+      "tenant_scoped": true,
+      "resource": { "name": "blast_project", "status": "approved" },
+      "data_sources": ["blast_project", "blast_projects", "blast_cloud_units"]
+    },
+    "automations": {
+      "api_base": "/api/v1/external/automations",
+      "resource": { "name": "blast_automation_rule", "status": "approved", "page_size_max": 200 },
+      "data_sources": ["blast_automation_rule", "blast_automation_rules"]
+    },
+    "gaps": {
+      "api_base": "/api/v1/external/gaps",
+      "resource": { "name": "blast_gap", "status": "denied", "reason": "Gaps are detected and scored by Blast. A Terraform resource would overwrite Blast's own assessment (product decision, Nov 2026)." },
+      "data_sources": ["blast_gap", "blast_gaps"]
+    }
+  }
+}

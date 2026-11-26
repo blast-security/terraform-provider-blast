@@ -44,7 +44,10 @@ internal/client/                thin HTTP client: OAuth token cache, Do(), pagin
   projects.go                   projects + org units
 internal/provider/              Terraform schemas and CRUD
   provider.go                   provider config + resource/data source registration
-  common.go                     shared helpers: enum normalisation, list/set conversion, import ID parsing
+  common.go                     shared helpers: enum normalisation, list/set conversion, import ID parsing,
+                                projectIDAttribute + planProjectReplace
+  policy_test.go                guard: resources must be approved in the policy; docs/example/e2e/CHANGELOG exist
+  schema_lint_test.go           guard: empty-collection/object validators, safe project_id, import
   task_common.go                shared logic for task-backed resources (delivery_mode, PR, on_destroy)
   *_resource.go / *_data_sources.go
 tools/mockserver/               in-memory fake of the API + token endpoint (used by e2e and local dev)
@@ -54,6 +57,8 @@ scripts/check_enums.sh          print identifier/operator enums the live API acc
 scripts/probe_expiry_endpoint.sh  safe probe of an internal endpoint (diagnostics only, not used by the provider)
 examples/                       complete, projects, provider, smoke-readonly (no writes), live-test (step-by-step writes)
 docs/                           Terraform Registry docs (one file per resource/data source, registry format)
+terraform-sync-policy.json      which API objects may be resources vs data sources (product-owned, see section 11)
+.github/sync-agent/PROMPT.md    instructions for the AI step of the spec sync
 .github/workflows/              test.yml (PR/main), release.yml (tags v*), live-smoke.yml (manual/scheduled, real tenant)
 ```
 
@@ -79,6 +84,11 @@ docs/                           Terraform Registry docs (one file per resource/d
 10. **Don't hard-code API enums as validators** when the API already validates them (see 5.2). Only validate what the
    provider itself needs (e.g. `delivery_mode`).
 11. **Don't change `go.mod`'s module path, the provider address, or resource type names** without a major-version plan.
+12. **No resource without a product decision.** A resource exists only if `terraform-sync-policy.json` lists it as
+    `approved`. Anything Blast computes or scores (gaps, findings, coverage, risk) is a data source only: a resource would
+    overwrite Blast's own assessment on every apply. New API objects default to data sources. `policy_test.go` enforces this.
+13. **Generated code is a draft, never a deliverable.** `*_gen.go`, the generator's "starting point" header and `rawJSON` must
+    not reach `main`. Follow section 11. `TestNoUnfinishedGeneratedCode` enforces this.
 
 ## 5. Architecture and behaviour (read before editing)
 
@@ -208,11 +218,53 @@ Work on a branch and open a PR to `develop`; merge after the provider release is
 
 1. Confirm the endpoints exist in the External API spec (CRUD + 404 on missing + IDs stable).
 2. Client: typed structs + methods in `internal/client/` (use `RequestOptions`, `listPaged` for lists).
+0. Record the product decision in `terraform-sync-policy.json` (`"status": "approved"`) first; CODEOWNERS routes it to product.
 3. Resource: schema with descriptions, plan modifiers (`UseStateForUnknown` for stable computed values, `RequiresReplace`
    only where the API can't update), Create/Read/Update/Delete/ImportState; Read removes state on 404.
+   `project_id` is always `projectIDAttribute()` plus a `ModifyPlan` that calls `planProjectReplace` (never plain `RequiresReplace`).
 4. Normalise API enums via `canonicalEnum`/`keepEnum` to avoid drift.
 5. Register in `provider.go`.
 6. Mock endpoints in `tools/mockserver` (return raw enum keys to exercise normalisation).
 7. Extend `scripts/e2e_mock.sh` or add an example and verify: create, re-plan clean, update in place, import, destroy.
 8. Registry doc `docs/resources/<name>.md` (+ data sources), example, CHANGELOG, README table, Mintlify guide.
 9. Live test on the sandbox tenant before release.
+
+## 11. Generated code and the spec-sync agent
+
+The spec-sync job reads the External API spec, writes `*_gen.go` skeletons and opens a
+PR here; an AI step then finishes the code. Reviews of the first two sync PRs found the same classes of bugs, so they are
+now rules, most of them enforced by tests. The agent's prompt is `.github/sync-agent/PROMPT.md`.
+
+**What the bot may and may not do**
+
+| Change | Bot alone | Needs a human |
+|---|---|---|
+| New/updated data source for an object in the policy | yes (draft PR) | review |
+| New field on an existing resource | yes (draft PR) | review |
+| New resource, or a resource for an object not `approved` in the policy | **no** | product decision in `terraform-sync-policy.json` first |
+| Edit `terraform-sync-policy.json`, `lintExempt`, `knownViolations` | **no** | CODEOWNERS |
+| Release / tag | **no** | maintainer |
+
+Data sources and resources go in separate PRs. Bot PRs are opened as drafts with the `needs-product-signoff` label when
+they touch a resource.
+
+**Lessons-learned checklist (each item caused a real bug)**
+
+| # | Rule | How it is caught |
+|---|---|---|
+| 1 | Blast-computed objects (gaps, scores) are data sources only. | `TestResourcesAreApprovedInPolicy` |
+| 2 | When the API rewrites a value (case, `#channel` -> `channel`, Jira name -> key, label -> raw enum), keep the configured value in state if it is equivalent (`keepEnum`, a `keepFold`-style helper). Never write the API's spelling over the user's. | e2e "create, then no drift" |
+| 3 | Optional lists/sets/maps need `SizeAtLeast(1)`; optional objects whose children are all optional need an object validator. `= []` / `= {}` comes back as null and fails apply with "inconsistent result". | `TestSchemaLint` (empty-collection, empty-object) |
+| 4 | `import` must be followed by a plan with **no changes**, with `<id>` and with `<project_id>/<id>`. | e2e import steps, `TestSchemaLint` (bare-import) |
+| 5 | `project_id`: `projectIDAttribute()` + `planProjectReplace`. Plain `RequiresReplace` destroys imported objects. | `TestSchemaLint` (bare-import) + e2e |
+| 6 | Full-replace `PUT` endpoints wipe whatever Terraform doesn't send (e.g. console-only actions). Read those fields back, refuse to drop them silently (`ModifyPlan` error, explicit opt-in to overwrite). | review + e2e |
+| 7 | Respect page-size caps (automations: 200). Put them in the policy (`page_size_max`) and the client. | review |
+| 8 | Tenant-scoped endpoints (projects) must not send `x-project-id` (`RequestOptions{NoProject: true}`); data sources that are project-scoped must say so when no project is set. | mock rejects the header |
+| 9 | The mock must behave like the API: normalise and rewrite values the way the API does, stamp server timestamps, return lists in a stable order, reject invalid combinations with the API's error text. A mock that echoes input hides bugs 2 and 3. | e2e |
+| 10 | Every resource/data source ships with a Registry doc, an example, an e2e run (create, clean plan, update, import -> clean plan, empty-value cases, destroy) and a CHANGELOG line. | `TestEveryTypeIsDocumentedTestedAndInChangelog` |
+| 11 | No `*_gen.go`, generator header, `rawJSON` or `TODO` in docs on `main`. Don't register a generated type next to a hand-written one. | `TestNoUnfinishedGeneratedCode`, duplicate-registration check |
+
+`TestSchemaLint` has two lists. `knownViolations` holds bugs already on `main` and tracked for a fix; it may only shrink
+(an entry that stops firing fails the test). `lintExempt` holds attributes the lint cannot judge, with a reason (only
+write-once task inputs never read back from the API). The agent must never add entries to either.
+

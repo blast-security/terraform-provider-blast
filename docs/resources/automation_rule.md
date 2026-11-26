@@ -60,15 +60,24 @@ More in `examples/automation-rules`.
   * `allow_exclusion_request`, `allow_request_for`, `max_exclusion_duration_days` (API default 180): the "request an exclusion" button. These need `use_notification_routing_rules`.
   * `notify_on_review`, `notify_requester_on_expiry`: see the table above.
 * `jira` (Optional, `EXCLUSION_REQUEST_CREATED` only) `project` (the project **key**), `issue_type`, `summary`, `update_on_review`.
-* `project_id` (Optional) Overrides the provider's project. Forces replacement.
+* `overwrite_console_changes` (Optional, bool) Allow an update to delete actions and Slack channels set in the console (see below). Default false.
+* `project_id` (Optional) Overrides the provider's project. Changing the effective project (this value, or the provider's `project_id` when unset) forces replacement. Writing out the provider's project explicitly, or adding it after an import by bare ID, does not.
 
 ## Attributes
 
-`id`, `unmanaged_actions`, `created_at`, `created_by`, `modified_at`, `modified_by`.
+`id`, `unmanaged_actions`, `other_slack_channels`, `created_at`, `created_by`, `modified_at`, `modified_by`.
 
 ## Rules edited outside Terraform
 
-An update sends the whole rule (`PUT`), so it removes anything this resource cannot express. That includes actions such as webhooks (listed in `unmanaged_actions`) and extra Slack channels added in the console. The provider warns when it reads a rule that has these.
+An update sends the whole rule (`PUT`), so it would remove anything this resource cannot express: actions such as webhooks (listed in `unmanaged_actions`) and extra Slack channels added in the console (listed in `other_slack_channels`). When a rule has either, a plan that updates or replaces it **fails** and names what would be deleted. To go ahead, remove them in the console, or set:
+
+```hcl
+  overwrite_console_changes = true # delete what the console added
+```
+
+## Empty values
+
+Leave a block out instead of writing it empty: `slack = {}`, `conditions = {}` and `allow_request_for = []` are rejected at plan time, because the API drops empty values.
 
 ## Import
 

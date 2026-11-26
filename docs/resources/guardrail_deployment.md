@@ -42,7 +42,7 @@ resource "blast_guardrail_deployment" "baseline" {
 * `delivery_mode` (Optional) `task` (default) or `open_pr`. Changing `task` to `open_pr` opens the PR in place. Changing back forces replacement.
 * `pull_request` (Optional) `{ title, description, source_branch_prefix, targets }`. Used only with `open_pr`.
 * `on_destroy` (Optional) `delete` (default) deletes the Blast task. `abandon` only removes it from Terraform state.
-* `project_id` (Optional)
+* `project_id` (Optional) Overrides the provider's project. Changing the effective project (this value, or the provider's `project_id` when unset) forces replacement.
 
 ## Attributes
 

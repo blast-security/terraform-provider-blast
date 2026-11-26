@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
@@ -10,6 +11,9 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/diag"
 	"github.com/hashicorp/terraform-plugin-framework/path"
+	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
+	"github.com/hashicorp/terraform-plugin-framework/schema/validator"
 	"github.com/hashicorp/terraform-plugin-framework/tfsdk"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 	"github.com/hashicorp/terraform-plugin-framework/types/basetypes"
@@ -185,3 +189,93 @@ func setAll(ctx context.Context, st *tfsdk.State, vals map[string]attr.Value) di
 }
 
 var objectAsOpts = basetypes.ObjectAsOptions{UnhandledNullAsEmpty: true, UnhandledUnknownAsEmpty: true}
+
+// projectIDAttribute is the project_id input every project-scoped resource uses. It has no
+// RequiresReplace modifier on purpose: plain RequiresReplace destroys an object imported with a bare
+// "<id>" as soon as the config sets project_id, and fires when a user spells out the provider
+// default. Replacement is decided in ModifyPlan by planProjectReplace, which compares the
+// EFFECTIVE project (configured value, else the provider default) with the project the object was
+// created or imported in (kept in private state).
+func projectIDAttribute() schema.StringAttribute {
+	return schema.StringAttribute{Optional: true, Description: projectIDDesc}
+}
+
+const projectIDDesc = "Blast project ID. Overrides the provider default. Changing the effective project forces a new resource."
+
+const privateProjectKey = "effective_project"
+
+type privateStore interface {
+	GetKey(context.Context, string) ([]byte, diag.Diagnostics)
+	SetKey(context.Context, string, []byte) diag.Diagnostics
+}
+
+func effectiveProject(v types.String, c *client.Client) string {
+	if v.IsNull() || v.IsUnknown() || v.ValueString() == "" {
+		return c.DefaultProjectID()
+	}
+	return v.ValueString()
+}
+
+// rememberProject records the project the object lives in. Call it after Create (overwrite=true)
+// and after Read (overwrite=false, so the value from Create/import is kept).
+func rememberProject(ctx context.Context, priv privateStore, v types.String, c *client.Client, overwrite bool) diag.Diagnostics {
+	if priv == nil {
+		return nil
+	}
+	if !overwrite {
+		if b, d := priv.GetKey(ctx, privateProjectKey); d.HasError() || len(b) > 0 {
+			return d
+		}
+	}
+	b, _ := json.Marshal(effectiveProject(v, c))
+	return priv.SetKey(ctx, privateProjectKey, b)
+}
+
+// planProjectReplace forces replacement only when the effective project changes.
+func planProjectReplace(ctx context.Context, c *client.Client, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	if req.State.Raw.IsNull() || req.Plan.Raw.IsNull() {
+		return
+	}
+	var prior, planned types.String
+	resp.Diagnostics.Append(req.State.GetAttribute(ctx, path.Root("project_id"), &prior)...)
+	resp.Diagnostics.Append(req.Plan.GetAttribute(ctx, path.Root("project_id"), &planned)...)
+	if planned.IsUnknown() {
+		resp.RequiresReplace = append(resp.RequiresReplace, path.Root("project_id"))
+		return
+	}
+	was := effectiveProject(prior, c)
+	if req.Private != nil {
+		if b, _ := req.Private.GetKey(ctx, privateProjectKey); len(b) > 0 {
+			_ = json.Unmarshal(b, &was)
+		}
+	}
+	if was != effectiveProject(planned, c) {
+		resp.RequiresReplace = append(resp.RequiresReplace, path.Root("project_id"))
+	}
+}
+
+// notEmptyObject rejects an optional object written as `{}`. The API drops an empty object, so
+// Terraform would read back null and fail with "inconsistent result after apply".
+func notEmptyObject() validator.Object { return notEmptyObjectValidator{} }
+
+type notEmptyObjectValidator struct{}
+
+func (notEmptyObjectValidator) Description(_ context.Context) string {
+	return "must set at least one attribute (omit the block instead of writing {})"
+}
+
+func (v notEmptyObjectValidator) MarkdownDescription(ctx context.Context) string {
+	return v.Description(ctx)
+}
+
+func (v notEmptyObjectValidator) ValidateObject(ctx context.Context, req validator.ObjectRequest, resp *validator.ObjectResponse) {
+	if req.ConfigValue.IsNull() || req.ConfigValue.IsUnknown() {
+		return
+	}
+	for _, a := range req.ConfigValue.Attributes() {
+		if !a.IsNull() {
+			return
+		}
+	}
+	resp.Diagnostics.AddAttributeError(req.Path, "Empty block", req.Path.String()+" "+v.Description(ctx)+".")
+}

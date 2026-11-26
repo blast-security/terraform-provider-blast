@@ -55,10 +55,7 @@ func taskCommonAttrs() map[string]schema.Attribute {
 		"id": schema.StringAttribute{
 			Computed: true, Description: "Blast task ID.", PlanModifiers: keep,
 		},
-		"project_id": schema.StringAttribute{
-			Optional: true, Description: "Blast project ID. Overrides the provider default.",
-			PlanModifiers: []planmodifier.String{stringplanmodifier.RequiresReplace()},
-		},
+		"project_id": projectIDAttribute(),
 		"delivery_mode": schema.StringAttribute{
 			Optional: true, Computed: true, Default: stringdefault.StaticString(deliveryTask),
 			Description: "How the change is delivered: \"task\" (create a Blast task only, deploy from Blast) or \"open_pr\" " +

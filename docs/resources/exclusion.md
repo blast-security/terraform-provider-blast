@@ -38,7 +38,7 @@ resource "blast_exclusion" "break_glass" {
 * `platform_type` (Optional) `Amazon Web Services`, `Azure Cloud`, `Google Cloud Platform`. Resolved from the guardrail when omitted.
 * `units` (Optional, set) Org unit IDs. When omitted, the API applies the rule to all root org units of the guardrail.
 * `expiration_date` (Optional) `YYYY-MM-DD`. **Forces replacement** because the API cannot update it in place.
-* `project_id` (Optional) Overrides the provider's project. Forces replacement.
+* `project_id` (Optional) Overrides the provider's project. Changing the effective project (this value, or the provider's `project_id` when unset) forces replacement. Writing out the provider's project explicitly, or adding it after an import by bare ID, does not.
 
 ## Attributes
 

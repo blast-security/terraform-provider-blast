@@ -16,6 +16,7 @@ import (
 
 var (
 	_ resource.Resource                   = &controlChangeResource{}
+	_ resource.ResourceWithModifyPlan     = &controlChangeResource{}
 	_ resource.ResourceWithImportState    = &controlChangeResource{}
 	_ resource.ResourceWithValidateConfig = &controlChangeResource{}
 )
@@ -143,6 +144,7 @@ func (r *controlChangeResource) Create(ctx context.Context, req resource.CreateR
 		plan.TerraformPrURL = types.StringNull()
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, plan)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, plan.ProjectID, r.client, true)...)
 }
 
 func (r *controlChangeResource) Read(ctx context.Context, req resource.ReadRequest, resp *resource.ReadResponse) {
@@ -178,6 +180,7 @@ func (r *controlChangeResource) Read(ctx context.Context, req resource.ReadReque
 		state.OnDestroy = types.StringValue(onDestroyDelete)
 	}
 	resp.Diagnostics.Append(resp.State.Set(ctx, state)...)
+	resp.Diagnostics.Append(rememberProject(ctx, resp.Private, state.ProjectID, r.client, false)...)
 }
 
 func (r *controlChangeResource) Update(ctx context.Context, req resource.UpdateRequest, resp *resource.UpdateResponse) {
@@ -233,4 +236,9 @@ func (r *controlChangeResource) ImportState(ctx context.Context, req resource.Im
 	if project != "" {
 		resp.Diagnostics.Append(resp.State.SetAttribute(ctx, path.Root("project_id"), project)...)
 	}
+}
+
+// ModifyPlan replaces the resource only when its effective project changes (see projectIDAttribute).
+func (r *controlChangeResource) ModifyPlan(ctx context.Context, req resource.ModifyPlanRequest, resp *resource.ModifyPlanResponse) {
+	planProjectReplace(ctx, r.client, req, resp)
 }

@@ -1,0 +1,14 @@
+# Owners are people until teams exist (then replace them). Turn on "Require review from Code
+# Owners" for main in the branch protection rules.
+
+*                                         @edenzil123
+
+# Product decides which API objects become Terraform resources.
+/terraform-sync-policy.json               @yanivblast @edenzil123
+/internal/provider/*_resource.go          @yanivblast @edenzil123
+
+# The guard tests, their allowlists and the agent's instructions.
+/internal/provider/policy_test.go         @edenzil123
+/internal/provider/schema_lint_test.go    @edenzil123
+/AGENTS.md                                @edenzil123
+/.github/                                 @edenzil123
