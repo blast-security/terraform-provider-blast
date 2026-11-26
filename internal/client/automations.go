@@ -89,3 +89,31 @@ func (c *Client) ReplaceAutomationRule(ctx context.Context, project, id string, 
 func (c *Client) DeleteAutomationRule(ctx context.Context, project, id string) error {
 	return c.Do(ctx, http.MethodDelete, "/automations/"+url.PathEscape(id), RequestOptions{ProjectID: project}, nil, nil)
 }
+
+type AutomationRuleSummary struct {
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Trigger      string   `json:"trigger"`
+	Active       bool     `json:"active"`
+	Destinations []string `json:"destinations"`
+	ModifiedBy   string   `json:"modifiedBy"`
+	ModifiedAt   string   `json:"modifiedAt"`
+}
+
+// automationsPageSize is the API's maximum page size for GET /automations (it rejects larger).
+const automationsPageSize = 200
+
+func (c *Client) ListAutomationRules(ctx context.Context, project, trigger string, active *bool) ([]AutomationRuleSummary, error) {
+	q := url.Values{}
+	if trigger != "" {
+		q.Set("trigger", trigger)
+	}
+	if active != nil {
+		if *active {
+			q.Set("active", "true")
+		} else {
+			q.Set("active", "false")
+		}
+	}
+	return listPagedSize[AutomationRuleSummary](ctx, c, "/automations", project, q, automationsPageSize)
+}

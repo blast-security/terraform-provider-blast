@@ -130,6 +130,21 @@ func TestJWTExpiryFallback(t *testing.T) {
 	}
 }
 
+func TestAutomationRulesListUsesTheAPIPageSize(t *testing.T) {
+	var sizes []string
+	srv, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		sizes = append(sizes, r.URL.Query().Get("size"))
+		_, _ = w.Write([]byte(`{"data":[],"page":{"totalPages":1}}`))
+	})
+	c := newTestClient(t, srv, "p")
+	if _, err := c.ListAutomationRules(context.Background(), "", "", nil); err != nil {
+		t.Fatal(err)
+	}
+	if len(sizes) != 1 || sizes[0] != "200" {
+		t.Fatalf("size = %q, want 200 (the API rejects more)", sizes)
+	}
+}
+
 func TestProjectsNeverSendProjectHeader(t *testing.T) {
 	var got []string
 	srv, _ := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {

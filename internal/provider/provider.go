@@ -130,5 +130,9 @@ func (p *blastProvider) DataSources(_ context.Context) []func() datasource.DataS
 		NewProjectDataSource,
 		NewProjectsDataSource,
 		NewCloudUnitsDataSource,
+		NewAutomationRuleDataSource,
+		NewAutomationRulesDataSource,
+		NewGapDataSource,
+		NewGapsDataSource,
 	}
 }

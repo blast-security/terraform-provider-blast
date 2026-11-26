@@ -303,6 +303,11 @@ func (c *Client) CreateTerraformPr(ctx context.Context, project, taskID string, 
 // ---------- helpers ----------
 
 func listPaged[T any](ctx context.Context, c *Client, path, project string, filters url.Values) ([]T, error) {
+	return listPagedSize[T](ctx, c, path, project, filters, pageSize)
+}
+
+// listPagedSize is listPaged for endpoints whose API caps the page size below pageSize.
+func listPagedSize[T any](ctx context.Context, c *Client, path, project string, filters url.Values, size int) ([]T, error) {
 	var all []T
 	err := Paginate(ctx, maxPages, func(page int) (int, int, error) {
 		q := url.Values{}
@@ -310,7 +315,7 @@ func listPaged[T any](ctx context.Context, c *Client, path, project string, filt
 			q[k] = v
 		}
 		q.Set("page", strconv.Itoa(page))
-		q.Set("size", strconv.Itoa(pageSize))
+		q.Set("size", strconv.Itoa(size))
 		var out struct {
 			Data []T   `json:"data"`
 			Page *Page `json:"page"`

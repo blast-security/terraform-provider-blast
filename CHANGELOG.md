@@ -3,6 +3,10 @@
 FEATURES:
 
 * **New Resource:** `blast_automation_rule`: Slack and Jira notifications for blocked activity, expiring exclusions, exclusion requests, coverage drops, new guardrails and control drift (create, update in place, delete, import). Changing `trigger` replaces the rule. An update replaces the whole rule, so actions added in the console (for example webhooks) are removed; the provider warns when a rule has them.
+* **New Data Source:** `blast_automation_rule`: Look up a single automation rule by ID.
+* **New Data Source:** `blast_automation_rules`: List automation rules with optional `trigger` and `active` filters.
+* **New Data Source:** `blast_gap`: Look up a single security gap by ID, including priority indicators and mitigation guidance.
+* **New Data Source:** `blast_gaps`: List defense gaps with optional filters (`tab`, `category`, `type`, `priority_level`, `status`, `is_quick_win`, `external_key`, `name`).
 
 ## 0.2.0 (Unreleased)
 
