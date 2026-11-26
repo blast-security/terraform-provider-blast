@@ -13,12 +13,6 @@
       "PATCH /api/v1/external/exclusions/{id}",
       "POST /api/v1/external/exclusions"
     ],
-    "blast_gap": [
-      "DELETE /api/v1/external/gaps/{id}",
-      "GET /api/v1/external/gaps/{id}",
-      "POST /api/v1/external/gaps",
-      "PUT /api/v1/external/gaps/{id}"
-    ],
     "blast_guardrail_deployment": [
       "DELETE /api/v1/external/tasks/{id}",
       "GET /api/v1/external/tasks/{id}",
